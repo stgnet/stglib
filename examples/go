@@ -1,0 +1,1 @@
+g++ -D_REENTRANT stftp.cpp -o stftp

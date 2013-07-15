@@ -1,0 +1,5105 @@
+Index: stfifo.h
+===================================================================
+--- stfifo.h	(revision 5)
++++ stfifo.h	(working copy)
+@@ -6,8 +6,6 @@
+ #ifndef STGLIB_STFIFO
+ #define STGLIB_STFIFO
+ 
+-#pragma message("using stfifo.h")
+-
+ #include "/src/stglib/stglib.h"
+ 
+ template <class TYPE> class StFifo
+@@ -97,4 +95,4 @@
+ 	}
+ };
+ 
+-#endif
++#endif
+Index: ststruct.h
+===================================================================
+--- ststruct.h	(revision 5)
++++ ststruct.h	(working copy)
+@@ -3,14 +3,11 @@
+ 
+ // template to convert a structure into StBase style i/o handling
+ 
++#include "/src/stglib/stglib.h"
+ 
+ #ifndef STGLIB_STSTRUCT
+ #define STGLIB_STSTRUCT
+ 
+-#pragma message("using ststruct.h")
+-
+-#include "/src/stglib/stglib.h"
+-
+ template <class TYPE> class StStruct:public StBase
+ {
+ private:
+Index: stfilter.h
+===================================================================
+--- stfilter.h	(revision 5)
++++ stfilter.h	(working copy)
+@@ -9,8 +9,6 @@
+ #ifndef STGLIB_STFILTER
+ #define STGLIB_STFILTER
+ 
+-#pragma message("using stfilter.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stbase.h"
+ #include "/src/stglib/stpipe.h"
+@@ -59,7 +57,7 @@
+ 					break;
+ 				scan++;
+ 			}
+-			StSize chunk=(StSize)(scan-data);
++			StSize chunk=scan-data;
+ 			if (chunk)
+ 				_FilterBase->_Write(data,chunk);
+ 			written+=chunk;
+@@ -117,14 +115,14 @@
+ 							scan++;
+ 
+ 				// remove from input buffer what is about to be returned
+-				InputBuffer._Delete((StSize)(scan-start+1));
++				InputBuffer._Delete(scan-start+1);
+ 
+ //				STBASE_DEBUG_OP("StFilterTextLine","READ",data_orig,data-data_orig);
+ 				return(sent);
+ 			}
+ 			// remove from buffer anything parsed & passed to app's buffer
+ 			if (scan>start)
+-				InputBuffer._Delete((StSize)(scan-start));
++				InputBuffer._Delete(scan-start);
+ 
+ 			// ### THIS IS BROKEN!!!
+ 			// it's assuming that the input is a stream, where it may instead be a buffer
+@@ -194,14 +192,14 @@
+ 							scan++;
+ 
+ 				// remove from input buffer what is about to be returned
+-				InputBuffer._Delete((StSize)(scan-start+1));
++				InputBuffer._Delete(scan-start+1);
+ 
+ 				STBASE_DEBUG_OP("StFilterTextLine","READ",data_orig,data-data_orig);
+ 				return(sent);
+ 			}
+ 			// remove from buffer anything parsed & passed to app's buffer
+ 			if (scan>start)
+-				InputBuffer._Delete((StSize)(scan-start));
++				InputBuffer._Delete(scan-start);
+ 
+ 			// ### THIS IS BROKEN!!!
+ 			// it's assuming that the input is a stream, where it may instead be a buffer
+@@ -314,10 +312,6 @@
+ 	{
+ 		return(1);
+ 	}
+-	virtual StSize _Available(void)
+-	{
+-		return(_FifoOutput._Available());
+-	}
+ 
+ 	virtual StSize _Filter(StByte *data,StSize size)=0;
+ 
+@@ -432,7 +426,7 @@
+ 	}
+ 	virtual void _FilterEnd(void)
+ 	{
+-		_FifoOutput<<"\n};\n#define "<<VariableName<<"_SIZE "<<(unsigned int)length<<"\n";
++		_FifoOutput<<"\n};\n#define "<<VariableName<<"_SIZE "<<length<<"\n";
+ 	}
+ };
+ 
+Index: sterror.h
+===================================================================
+--- sterror.h	(revision 5)
++++ sterror.h	(working copy)
+@@ -26,8 +26,6 @@
+ #ifndef STGLIB_STERROR
+ #define STGLIB_STERROR
+ 
+-#pragma message("using sterror.h")
+-
+ //class StString;
+ 
+ enum StError
+Index: stsockaddr.h
+===================================================================
+--- stsockaddr.h	(revision 5)
++++ stsockaddr.h	(working copy)
+@@ -16,11 +16,6 @@
+ #ifndef STGLIB_STSOCKADDR
+ #define STGLIB_STSOCKADDR
+ 
+-#pragma message("using stsockaddr.h")
+-
+-#include "/src/stglib/stbox.h"
+-#include "/src/stglib/stsock.h"
+-
+ // THIS is GLOBAL on purpose - to avoid having one copy for each socket
+ char _StSock_HostName_[64];
+ 
+@@ -47,14 +42,6 @@
+ public:
+ 	const char *Lookup(unsigned long addr)
+ 	{
+-		if (addr==0)
+-			return(0);
+-
+-		// don't bother trying to look up multicast or broadcast addresses
+-		StByte network=(StByte)((ntohl(addr))>>24);
+-		if (network>=224)
+-			return(0);
+-
+ 		StBoxRef<StIpName> scan(*this);
+ 		while (++scan)
+ 		{
+@@ -112,19 +99,18 @@
+ 
+ 
+ // IP address class
+-class StIpAddr
++class StIpAddr:public StString
+ {
+ public:
+ 	struct sockaddr_in _sockaddr;
+-	struct sockaddr_in _netmask;
+-	StString _readable;
++	unsigned long netmask;
+ 
+ 	StIpAddr()
+ 	{
+ 		_sockaddr.sin_family=AF_INET;
+ 		_sockaddr.sin_addr.s_addr=INADDR_ANY;
+ 		_sockaddr.sin_port=0;
+-		_netmask.sin_addr.s_addr=0;
++		netmask=0;
+ 	}
+ 	// this form used to view an address already in network format
+ /*	StIpAddr(unsigned long addr,unsigned short port=0)
+@@ -140,36 +126,16 @@
+ 		_sockaddr.sin_family=AF_INET;
+ 		_sockaddr.sin_addr.s_addr=INADDR_ANY;
+ 		_sockaddr.sin_port=0;
+-		(*this)(addr,port);
+-		_netmask.sin_addr.s_addr=0;
++//		(*this)(addr,port);
++		netmask=0;
+ 	}
+ 
+ 	StSize operator()(StIpAddr &addr)
+ 	{
+ 		_sockaddr=addr._sockaddr;
+-		_netmask=addr._netmask;
+ 		return(StErr_NONE);
+ 	}
+ 
+-	void operator()(unsigned long network_addr)
+-	{
+-		_sockaddr.sin_addr.s_addr=network_addr;
+-	}
+-
+-	unsigned short _GetPort(void)
+-	{
+-		return(ntohs(_sockaddr.sin_port));
+-	}
+-	void _SetPort(unsigned short port)
+-	{
+-		_sockaddr.sin_port=htons(port);
+-	}
+-	StSize operator()(StIpAddr &addr,unsigned short port)
+-	{
+-		_sockaddr=addr._sockaddr;
+-		_sockaddr.sin_port=htons(port);
+-		return(StErr_NONE);
+-	}
+ 	// this call accepts NETWORK order!
+ 	StSize _SetNetworkAddr(StByt4 addr,StByt2 port=0)
+ 	{
+@@ -179,89 +145,38 @@
+ 		return(StErr_NONE);
+ 	}
+ 
+-	bool operator==(StByt4 match)
+-	{
+-		return(_sockaddr.sin_addr.s_addr==match);
+-	}
+-	bool operator!=(StByt4 match)
+-	{
+-		return(_sockaddr.sin_addr.s_addr!=match);
+-	}
+-
+ 	bool operator==(StIpAddr &compare_to)
+ 	{
+ 		if (_sockaddr.sin_addr.s_addr==compare_to._sockaddr.sin_addr.s_addr)
+ 			return(true);
+ 		return(false);
+ 	}
+-	bool operator!=(StIpAddr &compare_to)
+-	{
+-		if (_sockaddr.sin_addr.s_addr!=compare_to._sockaddr.sin_addr.s_addr)
+-			return(true);
+-		return(false);
+-	}
+-	bool operator<(StIpAddr &match)
+-	{
+-		unsigned long left=ntohl(_sockaddr.sin_addr.s_addr);
+-		unsigned long right=ntohl(match._sockaddr.sin_addr.s_addr);
+-		if (left<right)
+-			return(true);
+-		return(false);
+-	}
+-	bool operator>(StIpAddr &match)
+-	{
+-		unsigned long left=ntohl(_sockaddr.sin_addr.s_addr);
+-		unsigned long right=ntohl(match._sockaddr.sin_addr.s_addr);
+-		if (left>right)
+-			return(true);
+-		return(false);
+-	}
+-	StIpAddr& operator++(void)
+-	{
+-		unsigned long temp=ntohl(_sockaddr.sin_addr.s_addr);
+-		++temp;
+-		_sockaddr.sin_addr.s_addr=htonl(temp);
+-		return(*this);
+-	}
+ 
+-	StIpAddr operator|(const StIpAddr &right)
+-	{
+-		StIpAddr temp=*this;
+-		temp._sockaddr.sin_addr.s_addr|=right._sockaddr.sin_addr.s_addr;
+-		return(temp);
+-	}
+-	StIpAddr operator&(const StIpAddr &right)
+-	{
+-		StIpAddr temp=*this;
+-		temp._sockaddr.sin_addr.s_addr&=right._sockaddr.sin_addr.s_addr;
+-		return(temp);
+-	}
+-	StIpAddr operator~()
+-	{
+-		StIpAddr temp=*this;
+-		temp._sockaddr.sin_addr.s_addr=~temp._sockaddr.sin_addr.s_addr;
+-		return(temp);		
+-	}
+-
+ 	StSize operator()(SOCKADDR_IN*addr)
+ 	{
+ 		_sockaddr=*addr;
+ 		return(StErr_NONE);
+ 	}
+-	void operator()(const char *addr,StByt2 port=0)
++	void _SetNetmask(StIpAddr *mask)
+ 	{
++		netmask=mask->_sockaddr.sin_addr.s_addr;
++	}
++
++	StSize operator()(const char *addr,StByt2 port=0)
++	{
+ 		if (port)
+ 			_sockaddr.sin_port=htons(port);
+ 
+ 		if (!addr)
+-			return; //(StErr_NONE);
++			return(StErr_NONE);
+ 
++/* REWRITE THIS USING PARSE
+ 		// copy address string to local storage and parse
+ 		StString host;
+ 		host<<addr;
+ 
+ 		// does the address have a ':' in it?
+-		char *p=(char*)(const char*)host;
++		char *p=(char*)host;
+ 		while (*p)
+ 		{
+ 			if (*p==':')
+@@ -274,23 +189,26 @@
+ 			*p++=0;
+ 			_sockaddr.sin_port=htons(atoi(p));
+ 		}
++*/
++		const char *host=addr;
+ 
+ 		_sockaddr.sin_addr.s_addr=inet_addr(host);
+ 		if (_sockaddr.sin_addr.s_addr && _sockaddr.sin_addr.s_addr!=-1)
+-			return; //(StErr_NONE);
++			return(StErr_NONE);
+ 
+ 		struct hostent *entry=gethostbyname(host);
+ 		if (!entry)
+-			return;
+-/*		{
++//			return(WSAGetLastError());
++//			return(_SockError("gethostbyname"));
++		{
+ 			_Err((StError)WSAGetLastError());
+ 			StString &msg=*(StString*)_ErrorString;
+ 			!msg<<"StIpAddr: "<<"gethostbyname"<<": #"<<_Error<<" "<<_SockErrorDescription(_Error,_ErrorDescription());
+ 			return(StErr_RETURN);
+ 		}
+-*/
++
+ 		_sockaddr.sin_addr.s_addr=*(unsigned long *)entry->h_addr_list[0];
+-		return; //(StErr_NONE);
++		return(StErr_NONE);
+ 	}
+ /*	char *_HostName(void)
+ 	{
+@@ -306,25 +224,25 @@
+ 	}
+ */
+ 	// before this class is written to an output device, update the inherited string with the current ip:port
+-	operator StString& ()
++	virtual void _WriteStart(StBase &Source)
+ 	{
+-		!_readable<<inet_ntoa(_sockaddr.sin_addr);
++		!(*this)<<inet_ntoa(_sockaddr.sin_addr);
+ 		if (_sockaddr.sin_port)
+ 		{
+-			_readable<<":"<<ntohs(_sockaddr.sin_port);
++			(*this)<<":"<<ntohs(_sockaddr.sin_port);
+ 
+ 			servent *s=getservbyport(_sockaddr.sin_port,NULL);	
+ 			if (s)
+ 			{
+-				_readable<<" ["<<s->s_name<<"]";
++				(*this)<<" ["<<s->s_name<<"]";
+ 			}
+ 		
+ 		}
+ 
+ 		// to save time, if the netmask is known, check for broadcast address before trying to reverse
+-		if (!~(_sockaddr.sin_addr.s_addr|_netmask.sin_addr.s_addr))
++		if (!~(_sockaddr.sin_addr.s_addr|netmask))
+ 		{
+-			_readable<<" (*)";
++			(*this)<<" (*)";
+ 		}
+ 		else
+ 		{
+@@ -332,90 +250,15 @@
+ //			struct hostent *entry=gethostbyaddr((char*)&_sockaddr.sin_addr,sizeof(_sockaddr.sin_addr),AF_INET);
+ //			if (entry)
+ //			{
+-//				_readable<<" ("<<entry->h_name<<")";
++//				(*this)<<" ("<<entry->h_name<<")";
+ //			}
+ 			const char *name=_StIpNameCache.Lookup(_sockaddr.sin_addr.s_addr);
+ 			if (name&& *name)
+-				_readable<<" ("<<name<<")";
++				(*this)<<" <"<<name<<")";
+ 		}
+-		return(_readable);
+-	}
+-	StByt4 _GetNetworkAddr()
+-	{
+-		return(_sockaddr.sin_addr.s_addr);
+-	}
+ 
+-	StIpAddr _GetNetmask(void)
+-	{
+-		StIpAddr temp;
+-		temp._SetNetworkAddr(_netmask.sin_addr.s_addr);
+-		return(temp);
+ 	}
+-	void _SetNetmask(StIpAddr &mask)
+-	{
+-		_netmask.sin_addr.s_addr=mask._sockaddr.sin_addr.s_addr;
+-	}
+ 
+-
+ };
+ 
+-class StMacAddr:public StBaseData
+-{
+-public:
+-	StByte MAC[6];
+-
+-	StMacAddr():StBaseData(MAC,6)
+-	{
+-		memset(MAC,0,6);
+-	}
+-	void operator!(void)
+-	{
+-		memset(MAC,0,6);
+-	}
+-	StMacAddr(const StMacAddr& copy):StBaseData(MAC,6)
+-	{
+-		memcpy(MAC,copy.MAC,sizeof(MAC));
+-	}
+-	StMacAddr(StByte *buf,StSize len):StBaseData(MAC,6)
+-	{
+-		if (len>6)
+-			len=6;
+-		if (len<6)
+-			memset(MAC,0,6);
+-		memcpy(MAC,buf,len);
+-	}
+-
+-	// handy for comparing to 0x00 or 0xFF
+-	/*
+-	bool operator==(StByte match)
+-	{
+-		if (MAC[0]==match &&
+-			MAC[1]==match &&
+-			MAC[2]==match &&
+-			MAC[3]==match &&
+-			MAC[4]==match &&
+-			MAC[5]==match
+-		)
+-			return(true);
+-		return(false);
+-	}
+-	*/
+-	StString ColonFormat(void)
+-	{
+-		StString buf;
+-		buf<<StHex(MAC[0]);
+-		buf<<":";
+-		buf<<StHex(MAC[1]);
+-		buf<<":";
+-		buf<<StHex(MAC[2]);
+-		buf<<":";
+-		buf<<StHex(MAC[3]);
+-		buf<<":";
+-		buf<<StHex(MAC[4]);
+-		buf<<":";
+-		buf<<StHex(MAC[5]);
+-		return(buf);
+-	}
+-};
+-
+ #endif
+Index: stpipe.h
+===================================================================
+--- stpipe.h	(revision 5)
++++ stpipe.h	(working copy)
+@@ -6,18 +6,15 @@
+ // NOTE: This class *DOES NOT* implement zero termination
+ //       although otherwise is similar to StString
+ 
+-
+-#ifndef STGLIB_STPIPE
+-#define STGLIB_STPIPE
+-
+-#pragma message("using stpipe.h")
+-
+ #include "/src/stglib/stglib.h"
+ 
+ // pipe class depends on StArray defined
+ #include "/src/stglib/starray.h"
+ 
+ 
++#ifndef STGLIB_STPIPE
++#define STGLIB_STPIPE
++
+ class StPipe:public StBase
+ {
+ private:
+Index: stsock.h
+===================================================================
+--- stsock.h	(revision 5)
++++ stsock.h	(working copy)
+@@ -12,30 +12,22 @@
+ // Applications should use StTcp or StUdp rather than 
+ // StSock directly
+ 
+-// WIN32: must add "ws2_32.lib" to list of library modules
+ 
+ #ifndef STGLIB_STSOCK
+ #define STGLIB_STSOCK
+ 
+-#pragma message("using stsock.h")
+-#ifdef STGLIB_STP_WIN32
+-#pragma comment(linker, "/defaultlib:ws2_32.lib")
+-#endif
+-
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stbase.h"
+ 
+ // get the necessary headers dependant on OS type
+ 
+-#ifdef STGLIB_STP_WIN32
++#ifdef WIN32
+ //=========================== WIN32 "Winsock" API
+ 
+ 
+-//#ifndef SOCKET_ERROR
++#ifndef SOCKET_ERROR
+ #include <winsock2.h>
+-#include <ws2tcpip.h>
+-//#endif
++#endif
+ 
+ 
+ #include "/src/stglib/stsockwse.h"
+@@ -127,9 +119,9 @@
+ 		_SockShutdown();
+ 	}
+ 
+-	void operator()(const char *addr,StByt2 port=0)
++	StSize operator()(const char *addr,StByt2 port=0)
+ 	{
+-		_IpAddr(addr,port);		
++		return(_IpAddr(addr,port));		
+ 	}
+ 	StSize operator()(StIpAddr &addr)
+ 	{
+@@ -140,8 +132,13 @@
+ 		return(_IpAddr);
+ 	}
+ 
+-	void _SetTimeout(StSize msec)
++/*	const char *_GetHostName(void)
+ 	{
++		gethostname(_StSock_HostName_,sizeof(_StSock_HostName_));
++		return(_StSock_HostName_);
++	}
++*/	void _SetTimeout(StSize msec)
++	{
+ 		if (!msec)
+ 		{
+ 			_socket_timeout=0;
+@@ -236,16 +233,16 @@
+ 	}
+ 
+ 
++
+ 	StSize _SockIoctl(unsigned long code,void *in,StSize in_size,void *out,StSize out_size)
+ 	{
+ 		if (_OpenSocket())
+ 			return(StErr_RETURN);
+ 		StSize got=0;
+-		if (WSAIoctl(_socket_handle,code,in,in_size,out,out_size,(LPDWORD)&got,NULL,NULL)==SOCKET_ERROR)
++		if (WSAIoctl(_socket_handle,code,in,in_size,out,out_size,&got,NULL,NULL)==SOCKET_ERROR)
+ 			return(_SockError("WSAIoctl"));
+ 		return(got);
+ 	}
+-
+ 	StSize _SockSetOption(unsigned long code,unsigned int value)
+ 	{
+ 		return(_SockIoctl(code,&value,sizeof(value),NULL,0));
+@@ -283,8 +280,7 @@
+ 	}
+ 	inline StSize _SockConnect(char *addr, int port)
+ 	{
+-		_IpAddr(addr,port);
+-		if (_IpAddr==0)
++		if (_IpAddr(addr,port))
+ 			return(StErr_RETURN);
+ 		return(_SockConnect());
+ 	}
+@@ -360,27 +356,6 @@
+ 		return(got);
+ 	}
+ 
+-	/* BROKEN
+-	StBuffer _SockGetName(void)
+-	{
+-		StBuffer buf;
+-		
+-		int size=64;
+-		buf._ArrayAllocate(size);
+-
+-		StSize got=getsockname(_socket_handle,(sockaddr *)(void*)buf,&size);
+-		if (got==SOCKET_ERROR)
+-		{
+-			_SockError("getsockname");
+-			!buf;
+-			return(buf);
+-		}
+-		
+-		buf._ArraySetUsedSize(size);
+-		return(buf);
+-	}
+-	*/
+-
+ 	// service functions
+ 	
+ 	// bind socket, address presumed to be already set
+@@ -397,17 +372,15 @@
+ 	// need to bind socket 
+ 	inline StSize _SockListen(char *addr,int port)
+ 	{
+-		_IpAddr(addr,port);
+-//		if (_IpAddr==0)
+-//			return(StErr_RETURN);
++		if (_IpAddr(addr,port))
++			return(StErr_RETURN);
+ 		if (_SockBind())
+ 			return(StErr_RETURN);
+ 		return(_SockListen());
+ 	}
+ 	inline StSize _SockListen(int port)
+ 	{
+-		_IpAddr(0,port);
+-		if (_IpAddr==0)
++		if (_IpAddr(0,port))
+ 			return(StErr_RETURN);
+ 		if (_SockBind())
+ 			return(StErr_RETURN);
+Index: stpalmdb.h
+===================================================================
+--- stpalmdb.h	(revision 5)
++++ stpalmdb.h	(working copy)
+@@ -3,8 +3,6 @@
+ #ifndef STGLIB_STPALMDB
+ #define STGLIB_STPALMDB
+ 
+-#pragma message("using stpalmdb.h")
+-
+ #include "/stglib/stfile.h"
+ #include "/stglib/ststruct.h"
+ #include "/stglib/stbuffer.h"
+Index: staudio.h
+===================================================================
+--- staudio.h	(revision 5)
++++ staudio.h	(working copy)
+@@ -8,13 +8,10 @@
+ #ifndef STGLIB_STAUDIO
+ #define STGLIB_STAUDIO
+ 
+-#pragma message("using staudio.h")
+-#ifdef WIN32
+-#pragma comment(linker, "/defaultlib:winmm.lib")
+-#endif
++#include "/src/stglib/stwin32.h"
+ 
+-#include "/src/stglib/stdio.h"
+ #include "/src/stglib/stfilter.h"
++
+ #include "/src/stglib/stmath.h"
+ 
+ // Normal CD audio rate is 44100 samples/sec, stereo (2 channels), linear PCM at 16 bits per sample
+@@ -38,7 +35,11 @@
+ // Other compression formats for telephony
+ // G.711, G.723.1, G.726, G.728, G.729
+ 
++// maps to defines from mmreg.h
+ 
++// must include mmreg.h for WAVE_FORMAT_MULAW and others
++#include <mmreg.h>
++
+ enum StAudioCodec
+ {
+ 	StAudio_Linear8=	WAVE_FORMAT_PCM|0x8000,
+@@ -140,7 +141,6 @@
+ 		BlocksInQueue=0;
+ 
+ 		WaveFormat=format;
+-		hWaveOut=NULL;
+ 		if (waveOutOpen((LPHWAVEOUT)&hWaveOut,WAVE_MAPPER,(LPWAVEFORMATEX)&format,(DWORD)StAudio_WaveOutCallback,(DWORD)this,CALLBACK_FUNCTION))
+ 		{
+ 			_Err(StErr_IOFailure,"waveOutOpen");
+@@ -158,22 +158,18 @@
+ 		}
+ 		waveOutClose(hWaveOut);
+ 	}
+-/*
++
+ 	void _Wait(void)
+ 	{
+ 		while (BlocksInQueue>1)
+ 			Sleep(5L);
+ 	}
+-*/
+ 	void _AddBlockToQueue(StByte *block,StSize size)
+ 	{
+-		while (BlocksInQueue>1)
+-			Sleep(1L);
+-
+ 		WAVEHDR *pWaveHdr=new WAVEHDR;
+ 
+ 		pWaveHdr->lpData=(char*)block;
+-		pWaveHdr->dwBufferLength=(DWORD)size;
++		pWaveHdr->dwBufferLength=size;
+ 		pWaveHdr->dwFlags=0L;
+ 		pWaveHdr->dwLoops=0L;
+ 		waveOutPrepareHeader(hWaveOut,pWaveHdr,sizeof(WAVEHDR));
+@@ -200,14 +196,7 @@
+ 
+ 			StByte *block=new StByte[get];
+ 			StSize got=Source._Read(block,get);
+-			if (Source._Error)
+-			{
+-				delete block;
+-				return(_Err(Source));
+-			}
+ 			_AddBlockToQueue(block,got);
+-			if (!Source._IsPipe())
+-				break;
+ 		}
+ 		return(1);
+ 	}
+@@ -289,7 +278,7 @@
+ 			BlockSize=block_size;
+ 
+ 		BlockSize*=format.Channels;
+-		BlockSize*=((format.BitsPerSample+7)/8);
++		BlockSize*=(format.BitsPerSample/8);
+ 
+ 
+ 		MMRESULT mmre=waveInOpen((LPHWAVEIN)&hWaveIn,WAVE_MAPPER,(LPWAVEFORMATEX)&format,(DWORD)StAudio_WaveInCallback,(DWORD)this,CALLBACK_FUNCTION);
+@@ -358,7 +347,7 @@
+ 	if (!pWaveHdr) return;
+ 	if (!pAudioInput) return;
+ 
+-	if ((pWaveHdr->dwFlags & WHDR_DONE) == WHDR_DONE) 
++	if (pWaveHdr->dwFlags & WHDR_DONE == WHDR_DONE) 
+ 	{
+ //		pWaveHdr->dwFlags = 0;
+ 		//if ( pAudioInput->IsError(
+Index: stdirectory.h
+===================================================================
+--- stdirectory.h	(revision 5)
++++ stdirectory.h	(working copy)
+@@ -6,13 +6,23 @@
+ #ifndef STGLIB_STDIRECTORY
+ #define STGLIB_STDIRECTORY
+ 
+-#pragma message("using stdirectory.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/ststring.h"
+ #include "/src/stglib/stbox.h"
+ 
++// need the win32 libs (if win32) for definition of DWORD later (egads)
++#ifdef WIN32
++#include "/src/stglib/stwin32.h"
++#define STDIRECTORY_USE_FINDFIRST
++#endif
+ 
++// on win32, need the io.h header file
++#ifndef _A_NORMAL
++#include <io.h>
++#endif
++
++
++
+ //////////////////////////////////////////////////////////////////////
+ // StDirectoryEntry - base class for directory entries (holds stamps)
+ //////////////////////////////////////////////////////////////////////
+@@ -103,6 +113,7 @@
+ 		if (!path_star._Contains('*'))
+ 			path_star<<"\\*";
+ 
++#ifdef STDIRECTORY_USE_FINDFIRST
+ 		
+ 		struct _finddata_t de;
+ 
+@@ -128,6 +139,10 @@
+ 		}
+ 
+ 
++#else
++  // use opendir
++#endif
++
+ 		ITEM *item=new ITEM;
+ 
+ 		if (de.name[0]!='.')
+Index: ststring.h
+===================================================================
+--- ststring.h	(revision 5)
++++ ststring.h	(working copy)
+@@ -6,20 +6,15 @@
+ // NOTE: this class insures zero terminator at end of string 
+ //       (although the byte is NOT counted by _ArrayUsed)
+ 
+-
+-#ifndef STGLIB_STSTRING
+-#define STGLIB_STSTRING
+-
+-#pragma message("using ststring.h")
+-
+ #include "/src/stglib/stglib.h"
+ //#include "/src/stglib/starray.h"
+ #include "/src/stglib/stbuffer.h"
+ 
++#ifndef STGLIB_STSTRING
++#define STGLIB_STSTRING
+ 
+-// define our own StUpper() to avoid crtl issues with toupper()
+-#define StToUpper(x) (((x)>='a' && (x)<='z')?(x)-32:(x))
+ 
++
+ template <class BASE> class StStringFunctions:public BASE
+ {
+ public: 
+@@ -55,7 +50,7 @@
+ //		if (memcmp((char*)ptr,s,size))
+ 		while (size--)
+ 		{
+-			if (StToUpper(*ptr)!=StToUpper(*s))
++			if (toupper(*ptr)!=toupper(*s))
+ 				return(false);
+ 			++ptr;
+ 			++s;
+@@ -227,11 +222,6 @@
+ 		return(*this);
+ 	}
+ */
+-	virtual void _Reset(void)
+-	{
+-		BASE::_Reset();
+-	}
+-
+ 	inline StStringFunctions& operator! ()
+ 	{
+ 		//_ArrayEmpty();
+@@ -436,22 +426,16 @@
+ 		STBASE_DEBUG_CON("StString");
+ 		(*this)<<initial_string;
+ 	}
+-	StString(const StString&  copyfrom)
+-	{
+-		StBuffer::operator=(copyfrom);
+-	}
+-	/*
+ 	StString(StString& copyfrom)
+ 	{
+ 		StBuffer::operator=(copyfrom);
+ 	}
+-	*/
+ 	virtual ~StString()
+ 	{
+ 		STBASE_DEBUG_DES("StString");
+ 	}
+ 
+-	StString& operator= (const StString& copyfrom)
++	StString& operator= (StString& copyfrom)
+ 	{
+ 		StBuffer::operator=(copyfrom);
+ 		return(*this);
+@@ -493,64 +477,8 @@
+ 	}
+ 	return(p);
+ }
++	
+ 
+-char *StDecRecur(char *p,unsigned long value,int digits)
+-{
+-	if (digits>1)
+-		p=StDecRecur(p,value/10,digits-1);
+-
+-	*p='0'+(StByte)(value%10);
+-	++p;
+-	*p=0;
+-	return(p);
+-}
+-
+-StString StDec(unsigned long value,int digits)
+-{
+-	static char buf[12];
+-
+-	StDecRecur(buf,value,digits);
+-	return(buf);
+-
+-}
+-
+-/*
+-StString StReadable(StBase &in)
+-{
+-	StString out;
+-	StBuffer buf;
+-	buf<<in;
+-	StSize index=0;
+-	while (index<~buf)
+-	{
+-		StByte b=buf[index];
+-		if (b<0x20 || b>=0x7F)
+-			out<<"["<<StHex(b)<<"]";
+-		else
+-			out._Write(&b,1);
+-		++index;
+-	}
+-	return(out);
+-}
+-*/
+-
+-StString StReadable(StByte *buf,StSize len)
+-{
+-	StString out;
+-	StSize index=0;
+-	while (index<len)
+-	{
+-		StByte b=buf[index];
+-		if (b<0x20 || b>=0x7F)
+-			out<<"["<<StHex(b)<<"]";
+-		else
+-			out._Write(&b,1);
+-		++index;
+-	}
+-	return(out);
+-}
+-
+-
+ static char *StCrLf="\x13\x10";
+ 
+ // FIX THIS
+@@ -647,7 +575,7 @@
+ 	inline StStringSection& operator()(StByte *ptr,StSize length)
+ 	{
+ //		_Offset=ptr-((StByte*)(*_pStorage));
+-		_Offset=(StSize)(ptr-(StByte*)(*_pSB));
++		_Offset=ptr-(StByte*)(*_pSB);
+ 		_Length=length;
+ 		return(*this);
+ 	}
+@@ -735,7 +663,7 @@
+ 		// this should be re-written to remove the
+ 		// clib calls to improve speed
+ 		StByte *ptr=(StByte*)(*this);
+-		StSize size=(StSize)strlen(s);
++		StSize size=strlen(s);
+ 		if (size!=~(*this))
+ 			return(false);
+ 		if (memcmp((char*)ptr,s,size))
+@@ -747,31 +675,19 @@
+ 		// this should be re-written to remove the
+ 		// clib calls to improve speed
+ 		StByte *ptr=(StByte*)(*this);
+-		StSize size=(StSize)strlen(s);
++		StSize size=strlen(s);
+ 		if (size!=~(*this))
+ 			return(false);
+ 		if (memcmp((char*)ptr,s,size))
+ 			return(false);
+ 		return(true);
+ 	}
+-	bool operator!=(char *s)
+-	{
+-		// this should be re-written to remove the
+-		// clib calls to improve speed
+-		StByte *ptr=(StByte*)(*this);
+-		StSize size=(StSize)strlen(s);
+-		if (size!=~(*this))
+-			return(true);
+-		if (memcmp((char*)ptr,s,size))
+-			return(true);
+-		return(false);
+-	}
+ 	bool operator!=(const char *s)
+ 	{
+ 		// this should be re-written to remove the
+ 		// clib calls to improve speed
+ 		StByte *ptr=(StByte*)(*this);
+-		StSize size=(StSize)strlen(s);
++		StSize size=strlen(s);
+ 		if (size!=~(*this))
+ 			return(true);
+ 		if (memcmp((char*)ptr,s,size))
+Index: stsocktcp.h
+===================================================================
+--- stsocktcp.h	(revision 5)
++++ stsocktcp.h	(working copy)
+@@ -6,27 +6,21 @@
+ #ifndef STGLIB_STTCP
+ #define STGLIB_STTCP
+ 
+-#pragma message("using sttcp.h")
++#include "/stglib/stglib.h"
++#include "/stglib/stsock.h"
+ 
+-#include "/src/stglib/stglib.h"
+-#include "/src/stglib/stsock.h"
+ 
+-
+ class StSockTcp:public StSock
+ {
+ public:
+ 	// normal usage
+ 	StSockTcp():StSock(IPPROTO_TCP)
+ 	{
+-		STBASE_DEBUG_CON("StSockTcp");
+ 		// presumption is that caller will set address and ask for connection
+ 	}
+ 
+ 	StSockTcp(char *addr,int port=0):StSock(IPPROTO_TCP)
+ 	{
+-		STBASE_DEBUG_CON("StSockTcp");
+-		STBASE_DEBUG_CON(addr);
+-
+ 		// set address and ask for connection
+ 		_SockConnect(addr,port);
+ 	}
+Index: sttcpservice.h
+===================================================================
+--- sttcpservice.h	(revision 5)
++++ sttcpservice.h	(working copy)
+@@ -6,8 +6,6 @@
+ #ifndef STGLIB_STTCPSERVICE
+ #define STGLIB_STTCPSERVICE
+ 
+-#pragma message("using sttcpservice.h")
+-
+ #include "/stglib/sttcp.h"
+ 
+ class StTcpService:public StTcp
+Index: stsockraw.h
+===================================================================
+--- stsockraw.h	(revision 5)
++++ stsockraw.h	(working copy)
+@@ -6,8 +6,6 @@
+ #ifndef STGLIB_STSOCKRAW
+ #define STGLIB_STSOCKRAW
+ 
+-#pragma message("using stsockraw.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stsock.h"
+ 
+@@ -257,8 +255,8 @@
+ 
+ 		StIpAddr Source;
+ 		StIpAddr Dest;
+-		Source._SetNetmask(*Netmask);
+-		Dest._SetNetmask(*Netmask);
++		Source._SetNetmask(Netmask);
++		Dest._SetNetmask(Netmask);
+ 
+ 		StDump hexdump(dump_buf);
+ 
+Index: stdatafile.h
+===================================================================
+--- stdatafile.h	(revision 5)
++++ stdatafile.h	(working copy)
+@@ -23,8 +23,6 @@
+ #ifndef STGLIB_STDATAFILE
+ #define STGLIB_STDATAFILE
+ 
+-#pragma message("using stdatafile.h")
+-
+ // this include gets base and everything we need
+ #include "/stglib/stglib.h"
+ 
+Index: stbase.h
+===================================================================
+--- stbase.h	(revision 5)
++++ stbase.h	(working copy)
+@@ -69,7 +69,6 @@
+ #ifndef STGLIB_STBASE
+ #define STGLIB_STBASE
+ 
+-#pragma message("using stbase.h")
+ 
+ #ifdef STBASE_DEBUG
+ 
+@@ -257,6 +256,7 @@
+ 		strcpy(_DebugName,"/");
+ #endif
+ 	
++	
+ 	}
+ /*	StBase(StDataDescriptor& desc)
+ 	{
+@@ -306,12 +306,11 @@
+ 
+ 	const char *_ErrorDescription(void)
+ 	{
+-		// vc2005 says _sys_nerr is deprecated
+ 		char *desc=0;
+-/*		if (_Error<_sys_nerr)
++		if (_Error<_sys_nerr)
+ 			desc=_sys_errlist[_Error];
+ 		else
+-*/		{
++		{
+ 			if (_Error>StErr_STGLIB_DEFINED && _Error<StErr_LAST_DEFINED)
+ 				desc=_STGLIB_Error[_Error-StErr_STGLIB_DEFINED];
+ 		}
+@@ -388,13 +387,7 @@
+ 	// higher level read/write calls to transfer data between classes
+ 	virtual StSize _Read(StBase &Source)
+ 	{
+-/*		StdError<<"StBase: WARNING: class not implementing _Read(base) and may fail\n";
+-		StByte buf[2048];
+-		StSize got=Source._Read(buf,sizeof(buf));
+-		if (Source._Error)
+-			return(_Err(Source));
+-		return(_Write(buf,got));
+-*/
++		Source;
+ 		// derived class should declare how to read from another class, if possible
+ 		return(_Err(StErr_NotImplemented,"_Read"));
+ 	}
+@@ -405,55 +398,6 @@
+ 		return(_Err(StErr_NotImplemented,"_Write"));
+ 	}
+ 
+-	virtual bool operator==(StBase &match)
+-	{
+-		// this is a totally quick-n-dirty default routine that should be replaced
+-		// must be replaced if reading object affects data (like file or pipe)
+-		// presume that there would be a difference within 2048 bytes
+-		StByte left[2048];
+-		StByte right[2048];
+-		StSize left_got=_Read(left,sizeof(left));
+-		if (left_got==sizeof(left))
+-			return(false);	// assume difference past 2047 bytes
+-		StSize right_got=match._Read(right,sizeof(right));
+-		if (left_got!=right_got)
+-			return(false);
+-
+-		return(memcmp(left,right,left_got)==0);
+-	}
+-	virtual bool operator!=(StBase &match)
+-	{
+-		return(!(operator==(match)));
+-	}
+-	virtual bool operator<(StBase &match)
+-	{
+-		StByte left[2048];
+-		StByte right[2048];
+-		StSize left_got=_Read(left,sizeof(left));
+-		if (left_got==sizeof(left))
+-			return(false);	// assume difference past 2047 bytes
+-		StSize right_got=match._Read(right,sizeof(right));
+-		if (left_got!=right_got)
+-			return(false);
+-
+-		return(memcmp(left,right,left_got)<0);
+-	}
+-	virtual bool operator>(StBase &match)
+-	{
+-		StByte left[2048];
+-		StByte right[2048];
+-		StSize left_got=_Read(left,sizeof(left));
+-		if (left_got==sizeof(left))
+-			return(false);	// assume difference past 2047 bytes
+-		StSize right_got=match._Read(right,sizeof(right));
+-		if (left_got!=right_got)
+-			return(false);
+-
+-		return(memcmp(left,right,left_got)>0);
+-	}
+-
+-
+-
+ 	// start/stop read/write calls to allow setup/teardown around single operation
+ 	virtual inline void _ReadStart(StBase &Source)
+ 	{
+@@ -475,7 +419,6 @@
+ 	// redefine this to return 1 from a pipe class
+ 	inline virtual char _IsPipe(void)
+ 	{
+-		STBASE_DEBUG_OP2("IsPipe","<0>",this);
+ 		return(0);
+ 	}
+ 	inline virtual char _IsPacket(void)
+@@ -491,47 +434,28 @@
+ 
+ 	inline virtual StSize _Transfer(StBase *from,StBase *dest)
+ 	{
+-		StSize got=0;
+-
+ 		dest->_ReadStart(*from);
+ 		from->_WriteStart(*dest);
+ 
+ 		dest->_Error=StErr_NONE;
+ 		from->_Error=StErr_NONE;
+ 
+-		// new 2007-03-15 StG
+-		// if from is a pipe, prefer to have it write to next dest
+-		if (from->_IsPipe())
++		StSize got=dest->_Read(*from);
++		if (dest->_Error==StErr_NotImplemented)
+ 		{
++			got=0;
++			dest->_Error=StErr_NONE;
++
+ 			// try the from writing dest
+ 			got=from->_Write(*dest);
+ 			if (from->_Error==StErr_NotImplemented)
+ 			{
+-				throw "StBase Transfer Failed";
+ 				from->_Err(StErr_NotPossible,"StBase","Not Possible");
+ 				dest->_Err(*from);
+ 			}
++			if (from->_Error)
++				dest->_Err(*from);
+ 		}
+-		else
+-		{
+-			got=dest->_Read(*from);
+-			if (dest->_Error==StErr_NotImplemented)
+-			{
+-				got=0;
+-				dest->_Error=StErr_NONE;
+-
+-				// try the from writing dest
+-				got=from->_Write(*dest);
+-				if (from->_Error==StErr_NotImplemented)
+-				{
+-					throw "StBase Transfer Failed";
+-					from->_Err(StErr_NotPossible,"StBase","Not Possible");
+-					dest->_Err(*from);
+-				}
+-				if (from->_Error)
+-					dest->_Err(*from);
+-			}
+-		}
+ 		if (dest->_Error && !from->_Error)
+ 			from->_Err(*dest);
+ 
+@@ -593,24 +517,11 @@
+ 			while (*pend)
+ 				pend++;
+ 			STBASE_DEBUG_OP("StBase","WRITE",(StByte*)cstring,pend-cstring);
+-			_Write((StByte*)cstring,(StSize)(pend-cstring));
++			_Write((StByte*)cstring,pend-cstring);
+ 		}
+ 		return(*this);
+ 	}
+ 
+-	StBase& _Dec(const unsigned long value,int digits)
+-	{
+-		if (digits>1)
+-		{
+-			(*this)._Dec(value/10,digits-1);
+-		}
+-		{
+-			StByte ch='0'+(StByte)(value%10);
+-			_Write(&ch,1);
+-		}
+-		return(*this);
+-	}
+-
+ 	StBase& operator<< (const unsigned long value)
+ 	{
+ 		if (value>9)
+@@ -673,12 +584,13 @@
+ 		{
+ 			(*this)<<(value/10);
+ 		}
+-		StByte ch='0'+(StByte)(value%10);
++		StByte ch='0'+value%10;
+ 		STBASE_DEBUG_OP("StBase","WRITE",&ch,1);
+ 		_Write(&ch,1);
+ 		return(*this);
+ 	}
+ 
++
+ };
+ 
+ // ##################################### CODE BELOW REMOVED - BASE TRANSFER NOW RESULTS IN ERROR
+@@ -1022,7 +934,7 @@
+ 	if (!pend) return(right);
+ 	while (*pend)
+ 		pend++;
+-	right._Write((StByte*)cstring,(StSize)(pend-cstring));
++	right._Write((StByte*)cstring,pend-cstring);
+ 
+ 	return(right);
+ }
+Index: stparse.h
+===================================================================
+--- stparse.h	(revision 5)
++++ stparse.h	(working copy)
+@@ -1,193 +1,174 @@
+-// STGLIB/stparse.h
+-// string parsing using sections
+-
+-
+-#ifndef STGLIB_STPARSE
+-#define STGLIB_STPARSE
+-
+-#pragma message("using stparse.h")
+-
+-#include "/src/stglib/stglib.h"
+-#include "/src/stglib/ststring.h"
+-
+-class StParseBase:public StStringSection
+-{
+-protected:
+-	StParseBase *_next;
+-	StParseBase *_child;
+-
+-public: 
+-	StParseBase()
+-	{
+-		_next=0;
+-		_child=0;
+-	}
+-
+-	virtual ~StParseBase()
+-	{
+-		if (_next)
+-			_next=_next->_next;
+-	}
+-
+-	virtual void Process(StParseBase &target)
+-	{
+-	}
+-
+-	void _ParseAll(StParseBase &target)
+-	{
+-//StdOutput<<"Walking "<<(const)&(*this)<<"\n";
+-
+-		StParseBase *scan=_child;
+-		while (scan)
+-		{
+-//StdOutput<<"  this="<<(const)this<<" scan="<<(const)scan<<" target="<<(const)&target<<"\n";
+-
+-//StdOutput<<" "<<(const)scan<<" Process "<<(const)&target<<"\n";		
+-			
+-
+-			scan->_SectionMatch(*this);
+-			scan->Process(*this);
+-			scan->_ParseAll(*this);
+-			scan=scan->_next;
+-		}
+-
+-//StdOutput<<"Done\n";
+-	}
+-
+-	void _ParseAddStep(StParseBase &step)
+-	{
+-//StdOutput<<(const)&(*this)<<" adding "<<(const)&(step)<<"\n";
+-		StParseBase *scan=_child;
+-		if (!scan)
+-		{
+-			_child=&step;
+-		}
+-		else
+-		{
+-			while (scan->_next)
+-				scan=scan->_next;
+-			scan->_next=&step;
+-		}
+-	}
+-
+-	//	virtual void _Reset(void)
+-//	{
+-//		_Offset=0;
+-//		_Length=0;
+-//	}
+-
+-};
+-
+-class StParseString:public StParseBase
+-{
+-protected:
+-	StString _Storage;
+-
+-public:
+-	StParseString()
+-	{
+-		(*this)(_Storage);
+-	}
+-
+-	virtual ~StParseString()
+-	{
+-	}
+-
+-	// allow array to duplicate storage to prevent pointer/alloc corruption!
+-	StParseString& operator= (StParseString& copyfrom)
+-	{
+-		_Storage=copyfrom._Storage;
+-		return(*this);
+-	}
+-
++// STGLIB/stparse.h
++// string parsing using sections
++
++#include "/src/stglib/stglib.h"
++#include "/src/stglib/ststring.h"
++
++#ifndef STGLIB_STPARSE
++#define STGLIB_STPARSE
++
++class StParseBase:public StStringSection
++{
++protected:
++	StParseBase *_next;
++	StParseBase *_child;
++
++public: 
++	StParseBase()
++	{
++		_next=0;
++		_child=0;
++	}
++
++	virtual ~StParseBase()
++	{
++		if (_next)
++			_next=_next->_next;
++	}
++
++	virtual void Process(StParseBase &target)
++	{
++	}
++
++	void _ParseAll(StParseBase &target)
++	{
++		StParseBase *scan=_child;
++		while (scan)
++		{
++			scan->_SectionMatch(target);
++			scan->Process(target);
++			scan->_ParseAll(target);
++			scan=scan->_next;
++		}
++	}
++
++	void _ParseAddStep(StParseBase &step)
++	{
++		StParseBase *scan=_child;
++		if (!scan)
++		{
++			_child=&step;
++		}
++		else
++		{
++			while (scan->_next)
++				scan=scan->_next;
++			scan->_next=&step;
++		}
++	}
++
++	//	virtual void _Reset(void)
++//	{
++//		_Offset=0;
++//		_Length=0;
++//	}
++
++};
++
++class StParseString:public StParseBase
++{
++protected:
++	StString _Storage;
++
++public:
++	StParseString()
++	{
++		(*this)(_Storage);
++	}
++
++	virtual ~StParseString()
++	{
++	}
++
++	// allow array to duplicate storage to prevent pointer/alloc corruption!
++	StParseString& operator= (StParseString& copyfrom)
++	{
++		_Storage=copyfrom._Storage;
++		return(*this);
++	}
++
+ /*	inline operator const char *(void)
+ 	{
+ 		return((const char*)_Storage);
+ 	}
+ */
+ 
+-	virtual inline void _ReadStart(StBase &Source)
+-	{
+-		!_Storage;
+-	}
+-
+-
+-	// wrap the write call with extra post-processing
+-	virtual StSize _Write(StByte *data,StSize size)
+-	{
+-		// map the write to the storage buffer
+-		size=_Storage._Write(data,size);
+-		if (_Storage._Error)
+-			return(_Err(_Storage));
+-
+-		StParseBase::_Reset();
+-		_ParseAll(*this);
+-		return(size);
+-	}
+-
+-	// wrap the read call with extra post-processing
+-	virtual StSize _Read(StBase &Source)
+-	{
+-		StSize size=_Storage._Read(Source);
+-		if (_Storage._Error)
+-			return(_Err(_Storage));
+-
+-		StParseBase::_Reset();
+-		_ParseAll(*this);
+-
+-		return(size);
+-	}
+-
+-	virtual void _Reset(void)
+-	{
+-		!_Storage;
+-	}
++	virtual inline void _ReadStart(StBase &Source)
++	{
++		!_Storage;
++	}
++
++
++	// wrap the write call with extra post-processing
++	virtual StSize _Write(StByte *data,StSize size)
++	{
++		// map the write to the storage buffer
++		size=_Storage._Write(data,size);
++		if (_Storage._Error)
++			return(_Err(_Storage));
++
++		StParseBase::_Reset();
++		_ParseAll(*this);
++		return(size);
++	}
++
++	// wrap the read call with extra post-processing
++	virtual StSize _Read(StBase &Source)
++	{
++		StSize size=_Storage._Read(Source);
++		if (_Storage._Error)
++			return(_Err(_Storage));
++
++		StParseBase::_Reset();
++		_ParseAll(*this);
++
++		return(size);
++	}
++
++	virtual void _Reset(void)
++	{
++		!_Storage;
++	}
++};
++
++// parse up to terminating character (which is removed)
++template <StByte Term> class StParseTerm:public StParseBase
++{
++public:
++	StParseTerm(StParseBase &target)
++	{
++		// attach StStringSection to parent target
++		(*this)(target);
++
++		// link this instance into target for parsing
++		target._ParseAddStep(*this);
++	}
++
++	void Process(StParseBase &target)
++	{
++		StByte *start=(StByte*)target;
++		StByte *end=start+~target;
++
++		StByte *scan=start;
++		while (scan<end)
++		{
++			if (*scan==Term)
++			{
++//				(*this)(start-_Reference(),scan-start);
++				(*this)(start,scan-start);
++				++scan;
++//				target(scan-_Reference(),end-scan);
++				target(scan,end-scan);
++				return;
++			}
++			++scan;
++		}
++		(*this)(start,end-start);
++		target(end,0);
++	}
+ };
+ 
+-// parse up to terminating character (which is removed)
+-template <StByte Term> class StParseBefore:public StParseBase
+-{
+-public:
+-	StParseBefore(StParseBase &target)
+-	{
+-		// attach StStringSection to parent target
+-		(*this)(target);
+ 
+-		// link this instance into target for parsing
+-		target._ParseAddStep(*this);
+-	}
+-
+-	void Process(StParseBase &target)
+-	{
+-		StByte *start=(StByte*)target;
+-		StByte *end=start+~target;
+-
+-//StdOutput<<(const)&(*this)<<"Parsing "<<target<<"@"<<(const)&(target)<<" for "<<Term<<"\n";
+-
+-		StByte *scan=start;
+-		while (scan<end)
+-		{
+-			if (*scan==Term)
+-			{
+-//				(*this)(start-_Reference(),scan-start);
+-				(*this)(start,scan-start);
+-				++scan;
+-//				target(scan-_Reference(),end-scan);
+-				target(scan,end-scan);
+-//StdOutput<<"Result: "<<(*this)<<"|"<<target<<"\n";
+-				
+-				
+-				
+-				return;
+-			}
+-			++scan;
+-		}
+-		(*this)(start,end-start);
+-		target(end,0);
+-	}
+-};
+-
+-
+ class StParseCSV:public StParseBase
+ {
+ 	StArrayObj<StString> element;
+@@ -267,7 +248,6 @@
+ 		StByte *start=(StByte*)target;
+ 		StByte *end=start+~target;
+ 
+-//StdOutput<<(const)&(*this)<<"Parsing "<<target<<"@"<<(const)&(target)<<" for "<<Term<<"\n";
+ 		StByte *scan=start;
+ 		while (scan<end)
+ 		{
+@@ -276,90 +256,16 @@
+ 				target(start,scan-start);
+ 				++scan;
+ 				(*this)(scan,end-scan);
+-//StdOutput<<"Result: "<<(*this)<<"|"<<target<<"\n";
+ 				return;
+ 			}
+ 			++scan;
+ 		}
+ 		target(start,end-start);
+ 		(*this)(end,0);
+-//StdOutput<<"xesult: "<<(*this)<<"|"<<target<<"\n";
+ 	}
+ };
+ 
+-// obtain string AFTER match string
+-template <const char * match> class StParseAfterString:public StParseBase
+-{
+-public:
+-	StParseAfterString(StParseBase &target)
+-	{
+-		(*this)(target);
+-		target._ParseAddStep(*this);
+-	}
+ 
+-	void Process(StParseBase &target)
+-	{
+-		StByte *start=(StByte*)target;
+-		StByte *end=start+~target;
+-
+-		StByte *scan=start;
+-		StByte *mtch=(StByte*)match;
+-		StByte *last=start;
+-		while (scan<end)
+-		{
+-			mtch=(StByte*)match;
+-			last=scan;
+-
+-			while (*mtch && *scan==*mtch && scan<end)
+-			{
+-				++scan;
+-				++mtch;
+-				if (!*mtch)
+-				{
+-					// found match
+-					target(start,last-start);
+-					(*this)(scan,end-scan);
+-					return;
+-				}
+-			}
+-			++scan;
+-		}
+-
+-		// failed to match, return null string
+-		target(start,end-start);
+-		(*this)(end,0);
+-	}
+-};
+-
+-// trim string of multiple instances of character before or after
+-template <StByte Trim> class StParseTrim:public StParseBase
+-{
+-public:
+-	StParseTrim(StParseBase &target)
+-	{
+-		(*this)(target);
+-		target._ParseAddStep(*this);
+-	}
+-	void Process(StParseBase &target)
+-	{
+-		StByte *start=(StByte*)target;
+-		StByte *end=start+~target;
+-
+-
+-		// note: target is not moved, only this
+-		StByte *scan=start;
+-		while (scan<end && *scan==Trim)
+-			++scan;
+-		while (scan<end && *(end-1)==Trim)
+-			--end;
+-
+-		(*this)(scan,end-scan);
+-	}
+-};
+-
+-		
+-
+-
+ // parse up to last instance of terminating character (which is removed)
+ template <StByte Term> class StParseTermLast:public StParseBase
+ {
+@@ -400,54 +306,54 @@
+ 	}
+ };
+ 
+-
+-
++
++
+ // obtain string between two different quote characters
+ // NOTE: this was changed to obtain nothing if enclosing characters not found
+-template <StByte Left,StByte Right> class StParseEnclosed:public StParseBase
+-{
+-public:
+-	StParseEnclosed(StParseBase &target)
+-	{
+-		// attach StStringSection to parent target
+-		(*this)(target);
++template <StByte Left,StByte Right> class StParseEnclosed:public StParseBase
++{
++public:
++	StParseEnclosed(StParseBase &target)
++	{
++		// attach StStringSection to parent target
++		(*this)(target);
++
++		// link this instance into target for parsing
++		target._ParseAddStep(*this);
++	}
++
++	void Process(StParseBase &target)
++	{
++		StByte *start=(StByte*)target;
++		StByte *end=start+~target;
++
++		StByte *scan=start;
++		while (scan<end)
++		{
++			if (*scan==Left)
++			{
++				++scan;
++				StByte *scan2=scan;
++				while (scan2<end)
++				{
++					if (*scan2==Right)
++					{
++						// found it
++						(*this)(scan,scan2-scan);
++						++scan2;
++						target(scan2,end-scan2);
++						return;
++					}
++					++scan2;
++				}
++			}
++			++scan;
++		}
++		target(start,end-start);
++		(*this)(end,0);
++	}
++};
+ 
+-		// link this instance into target for parsing
+-		target._ParseAddStep(*this);
+-	}
+-
+-	void Process(StParseBase &target)
+-	{
+-		StByte *start=(StByte*)target;
+-		StByte *end=start+~target;
+-
+-		StByte *scan=start;
+-		while (scan<end)
+-		{
+-			if (*scan==Left)
+-			{
+-				++scan;
+-				StByte *scan2=scan;
+-				while (scan2<end)
+-				{
+-					if (*scan2==Right)
+-					{
+-						// found it
+-						(*this)(scan,scan2-scan);
+-						++scan2;
+-						target(scan2,end-scan2);
+-						return;
+-					}
+-					++scan2;
+-				}
+-			}
+-			++scan;
+-		}
+-		target(start,end-start);
+-		(*this)(end,0);
+-	}
+-};
+-
+ template <StByte CharCount> class StParseHex:public StParseBase
+ {
+ public:
+@@ -526,5 +432,5 @@
+ 	}
+ };
+ */
+-
+-#endif
++
++#endif
+Index: stdio.h
+===================================================================
+--- stdio.h	(revision 5)
++++ stdio.h	(working copy)
+@@ -3,15 +3,12 @@
+ //
+ // purpose is to map stg io methods onto std_in, std_out, std_err paths
+ 
+-
+-#ifndef STGLIB_STDIO
+-#define STGLIB_STDIO
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stfile.h"
+ #include "/src/stglib/stdump.h"
+ 
+-#pragma message("using stdio.h")
++#ifndef STGLIB_STDIO
++#define STGLIB_STDIO
+ 
+ // and map global instances of StFile onto standard io paths
+ StFile StdInput(stdin);
+Index: sthttp.h
+===================================================================
+--- sthttp.h	(revision 5)
++++ sthttp.h	(working copy)
+@@ -1,9 +1,9 @@
+ // S1GLIB/sthttp.h
+-// Copyright 1999, 2002, 2007 by StG Net
++// Copyright 1999, 2002 by StG Net
+ 
+ // HTTP (Hyper Text Transfer Protocol) handling
+ 
+-// StHttp: wraps a StBuffer, where "NAME: VALUE{crlf}" constructs up to empty {crlf} can be manipulated
++// StHttpHeader: wraps a StBuffer, where "NAME: VALUE{crlf}" constructs up to empty {crlf} can be manipulated
+ 
+ // Instantiation (if data present it is parsed):
+ //		StBuffer storage;
+@@ -19,31 +19,20 @@
+ // Reference specific parameter
+ //		static char *value=http("Host");
+ 
++// ### this may not be necessary - modification can be done directly
+ // Change specific parameter
+-//		http("Host")="foobar";
++//		http.SetValue("Host","foobar");
++//		http.DeleteValue("Host");
+ 
+-// not yet implemented:
+-//		http._Delete("Host");
+-
+ // write new version:
+ //		http>>stream;
+-//
+-//
+-// NEW METHODS:
+-//
+-// If read from first, the output will be the HTTP Header sequence
+-// If written to first, the header will be stored and the (filter) output is the data
+ 
+-
+ #ifndef STGLIB_STHTTP
+ #define STGLIB_STHTTP
+ 
+-#pragma message("using sthttp.h")
+-
+ #include "/src/stglib/stbox.h"
+ #include "/src/stglib/stparse.h"
+ #include "/src/stglib/stfilter.h"
+-#include "/src/stglib/sttime.h"
+ 
+ class StHttp;
+ 
+@@ -58,40 +47,22 @@
+ 		_Param<<p;
+ 		_Value<<v;
+ 	}
+-	StHttpParam(const char *p)
+-	{
+-		_Param<<p;
+-	}
+ };
+ 
+-class StHttpHeader:public StBox<StHttpParam>
++class StHttp:public StBox<StHttpParam>
+ {
+ public:
+-	StBuffer _Storage;
++	StString _Method;
++	StString _Path;
++	StString _Version;
+ 
+-	// defined only if data already read from source that needs to be passed to output
+-	StBuffer *_Data;
++	StString empty;
++	StBuffer *_Storage;
+ 
+-	// size of data portion that needs to be read (set from Content-Length)
+-	StSize _ContentLength;
++	StBuffer _Data;
+ 
+-	// defined while filtering input to output
+-	StBase *_Source;
+-
+-	// size of header section
+-	StSize _HeaderSize;
+-
+-	void _Preset(void)
++	void ReParse(void)
+ 	{
+-//		_NoHeaderOutput=0;
+-		_Data=0;
+-		_Source=0;
+-		_HeaderSize=0;
+-		_ContentLength=0;
+-	}
+-
+-	void ParseHeader(void)
+-	{
+ 		_BoxEmpty();
+ 
+ 		// scan storage for values
+@@ -100,7 +71,7 @@
+ 		StParseTerm<' '> Path(FirstLine);
+ 
+ 		// read the http header one line at a time in text mode
+-		StFilterTextLine textline(_Storage);
++		StFilterTextLine textline(*_Storage);
+ 
+ 		StString line;
+ 
+@@ -127,172 +98,38 @@
+ 			// parse
+ 			value<<line;
+ 
++//StdOutput<<"Parsing Param="<<param<<"| Value="<<value<<"|\n";
++
+ 			if (!~value && !~param)
+ 				break;
+ 
+ 			// and throw in the box
+ 			(*this)+=new StHttpParam(param,value);
+-
+-			if (param=="Content-Length")
+-			{
+-				StString temp;
+-				temp<<value;
+-				_Content-Length=atoi(temp);
+-			}
+ 		}
+-	}
+ 
+-	int _HeaderComplete(void)
+-	{
+-		// this attempts a "fast" pointer based scan for the header termination sequence
+-		const char *start=_Storage;
+-		const char *end=start+~_Storage;
+-		const char *scan=start;
++		// first pull any remaining data from textline's InputBuffer
++		_Data<<textline.InputBuffer;
++		if ((*_Storage)._IsStream())
++			_Data<<(*_Storage);
+ 
+-		// back "end" up 3 chars to keep from going past allocation
+-		end-=3;
+-		if (end<=scan)
+-			return(0);
+-
+-		while (scan<end)
+-		{
+-			if (scan[0]==0x0D && scan[1]==0x0A && scan[2]==0x0D && scan[3]==0x0A)
+-			{
+-				// found end marker
+-				_HeaderSize=scan-start;
+-				_HeaderSize+=4;
+-				return(1);
+-			}
+-			++scan;
+-		}
+-		return(0);
+ 	}
+ 
+-	// cause the data to be read from me, not the source
+-	inline virtual char _IsPipe(void)
++	StHttp(StBuffer &storage)
+ 	{
+-		return(1);
++//		_Parsed=0;
++		_Storage=&storage;
++//		if (_Parsed!=~*_Storage)
++			ReParse();
+ 	}
+ 
+-	virtual StSize _Read(StBase &Source)
++	virtual ~StHttp()
+ 	{
+-		// after being written to, we will pass the data only without header
+-		_NoHeaderOutput=1;
+-
+-		// save source data path for later reading
+-		_Source=&Source;
+-
+-		_HeaderSize=0;
+-
+-		StTime expired;
+-
+-		// loop while reading header until it's all in
+-		while (~expired<10)
+-		{
+-			StSize got=_Storage._Read(Source);
+-			if (_Storage._Error)
+-				return(_Err(_Storage));
+-
+-			if (_HeaderComplete())
+-				break;
+-
+-			// don't have the whole header - kill some time and retry
+-			if (got)
+-				!expired;
+-			else
+-				Sleep(1);
+-		}
+-
+-		// see if there is data past header already read
+-		// and store it for passing to output
+-		StSize data_size=~_Storage-_HeaderSize;
+-		if (data_size)
+-		{
+-			_Data=new StBuffer;
+-			const char *start=_Storage;
+-			start+=_HeaderSize;
+-
+-			(*_Data)._Write((StByte*)start,data_size);
+-		}
+-
+-		ParseHeader();
+-		return(_HeaderSize);
+ 	}
+ 
+-	virtual StSize _Write(StBase &Destination)
+-	{
+-		if (_NoHeaderOutput)
+-		{
+-			_NoHeaderOutput=0;
+-			StSize DataReceived=0;
+-
+-			// pass any leftover data
+-			if (_Data)
+-			{
+-				(*_Data)>>Destination;
+-				DataReceived+=~(*_Data);
+-				delete _Data;
+-				_Data=0;
+-			}
+-			// pass the data from source path
+-
+-			StTime expired;
+-
+-			// loop while reading header until it's all in
+-			while (~expired<10)
+-			{
+-				// reset the temporary buffer
+-				!_Storage;
+-
+-				// read stream from source
+-				StSize got=_Storage._Read(*_Source);
+-				if (_Storage._Error)
+-					break;
+-
+-				DataReceived+=got;
+-
+-				// and write it to destination
+-				_Storage._Write(Destination);
+-
+-				if (DataReceived>=_Content-Length)
+-					break;
+-
+-				if (got)
+-					!expired; // reset timeout if something received
+-				else
+-					Sleep(1); // kill some time, allow other things to run
+-			}
+-			return(1);
+-		}
+-
+-		// construct header from current data
+-		Destination<<_Method<<" "<<_Path<<" "<<_Version<<"\x0D\x0A";
+-
+-		StBoxRef<StHttpParam> entry(*this);
+-		while (++entry)
+-			Destination<<entry->_Param<<": "<<entry->_Value<<"\x0D\x0A";
+-
+-		Destination<<"\x0D\x0A";
+-		return(1);
+-	}
+-
+-
+-	StHttpHeader()
+-	{
+-		STBASE_DEBUG_CON("StHttpHeader");
+-		_Preset();
+-	}
+-
+-	virtual ~StHttpHeader()
+-	{
+-		if (_Data)
+-			delete _Data;
+-	}
+-
+-	// this allows reference to parameters as strings like http("Host")="www.google.com";
+ 	StString& operator()(const char *param)
+ 	{
+ 		// search for matching entry and return it
++
+ 		StBoxRef<StHttpParam> scan(*this);
+ 		while (++scan)
+ 		{
+@@ -300,45 +137,9 @@
+ 				return(scan->_Value);
+ 		}
+ 
+-		StHttpParam *add=new StHttpParam(param);
+-		(*this)+=add;
+-		return(add->_Value);
++		return(empty);
+ 	}
+ };
+ 
+-class HttpRequest:public HttpHeader
+-{
+-public:
+-	StString _Method;
+-	StString _Path;
+-	StString _Version;
+-
+-	StHttp(const char *host,const char *method,const char *path)
+-	{
+-		STBASE_DEBUG_CON("StHttp");
+-
+-		_Method<<method;
+-		_Path<<path;
+-		_Version<<"HTTP/1.1";
+-
+-		(*this)("Host")=host;
+-	}
+-};
+-
+-class HttpResponse:public HttpHeader
+-{
+-public:
+-	StString _Version;
+-	StString _Code;
+-	StString _Status;
+-
+-};
+-
+-class HttpGet:public HttpResponse
+-{
+-public:
+-	HttpRequest reques;t
+-
+-};
+-
+ #endif
++
+Index: stserial.h
+===================================================================
+--- stserial.h	(revision 5)
++++ stserial.h	(working copy)
+@@ -8,8 +8,6 @@
+ #ifndef STGLIB_STSERIAL
+ #define STGLIB_STSERIAL
+ 
+-#pragma message("using stserial.h")
+-
+ #include "/stglib/stglib.h"
+ #include "/stglib/stbase.h"
+ #include "/stglib/ststring.h"
+Index: stfield.h
+===================================================================
+--- stfield.h	(revision 5)
++++ stfield.h	(working copy)
+@@ -1,14 +1,12 @@
+ // StGLIB/stfield.h
+ // field map handling
+ 
++#include "/src/stglib/stglib.h"
+ 
+ #ifndef STGLIB_STFIELD
+ #define STGLIB_STFIELD
+ 
+-#pragma message("using stfield.h")
+ 
+-#include "/src/stglib/stglib.h"
+-
+ #define FIELD_MAP(c,f) { ((size_t)(char*)&((c*)0)->f) , sizeof(((c*)0)->f) }
+ 
+ typedef struct
+Index: stchange.h
+===================================================================
+--- stchange.h	(revision 5)
++++ stchange.h	(working copy)
+@@ -7,7 +7,6 @@
+ #ifndef STGLIB_STCHANGE
+ #define STGLIB_STCHANGE
+ 
+-#pragma message("using stchange.h")
+ 
+ 
+ template <class TYPE> class StChange
+Index: sttcp.h
+===================================================================
+--- sttcp.h	(revision 5)
++++ sttcp.h	(working copy)
+@@ -6,8 +6,6 @@
+ #ifndef STGLIB_STTCP
+ #define STGLIB_STTCP
+ 
+-#pragma message("using sttcp.h")
+-
+ #include "/stglib/stglib.h"
+ #include "/stglib/stsock.h"
+ 
+Index: stbox.h
+===================================================================
+--- stbox.h	(revision 5)
++++ stbox.h	(working copy)
+@@ -8,8 +8,6 @@
+ #ifndef STGLIB_STBOX
+ #define STGLIB_STBOX
+ 
+-#pragma message("using stbox.h")
+-
+ template <class TYPE> class StBoxRef;
+ 
+ template <class TYPE> class StBox:public StBase
+@@ -34,7 +32,6 @@
+ 
+ 	inline StBox()
+ 	{
+-		STBASE_DEBUG_CON("StBox");
+ 		_ItemCount=0;
+ 		_BoxAutoDelete=0;
+ 	}
+@@ -211,7 +208,6 @@
+ 
+ 			if (*(_Table[one]) > *(_Table[two]))
+ 			{
+-//printf("%d ",one);
+ 				temp=_Table[one];
+ 				_Table[one]=_Table[two];
+ 				_Table[two]=temp;
+@@ -270,41 +266,6 @@
+ 
+ 		return(NULL);
+ 	}
+-
+-	// find entry where TYPE==s
+-	TYPE* operator()(const StSize n)
+-	{			
+-		StSize scan=0;
+-		while (scan<~_Table)
+-		{
+-			TYPE *entry=_Table[scan];
+-
+-			if ((*entry)==n)
+-				return(entry);
+-
+-			scan++;
+-		}
+-
+-		return(NULL);
+-	}
+-
+-	// find entry where TYPE==base
+-	TYPE* operator()(StBase &find)
+-	{			
+-		StSize scan=0;
+-		while (scan<~_Table)
+-		{
+-			TYPE *entry=_Table[scan];
+-
+-			if ((*entry)==find)
+-				return(entry);
+-
+-			scan++;
+-		}
+-
+-		return(NULL);
+-	}
+-
+ };
+ 
+ template <class TYPE> class StBoxRef
+@@ -437,121 +398,3 @@
+ #include "/src/stglib/stpostfx.h"
+ 
+ #endif
+-
+-
+-/* USE THIS NEW ALGORITHM INSTEAD
+-
+- * @(#)OETransSortAlgorithm.java	95/11/22 Andrew Kitchen
+- *
+-
+- * An Odd-Even Transposition sort demonstration algorithm
+- *
+- * @author Andrew Kitchen
+- * @version 	22 Nov 1995
+-
+-
+-class OETransSortAlgorithm extends SortAlgorithm {
+-    void sort(int a[]) throws Exception {
+-	pause(0,a.length-1);
+-	for (int i = 0; i < a.length/2; i++ ) {
+-		if (stopRequested) {
+-		    return;
+-		}
+-		for (int j = 0; j+1 < a.length; j += 2) 
+-		    if (a[j] > a[j+1]) {
+-		        int T = a[j];
+-		        a[j] = a[j+1];
+-		        a[j+1] = T;
+-		    }
+-		pause(); pause();
+-		for (int j = 1; j+1 < a.length; j += 2) 
+-		    if (a[j] > a[j+1]) {
+-		        int T = a[j];
+-		        a[j] = a[j+1];
+-		        a[j+1] = T;
+-		    }
+-		pause(); pause();
+-	}	
+-	pause(-1,-1);
+-    }
+-}
+-
+-*/
+-
+-/* NEW SORT ALGORITHM - USE TO REPLACE BUBBLE SORT
+-
+-	NEVER MIND - THIS ASSUMES NUMERIC VALUE, NOT PURE COMPARISON
+-
+- * A shear sort demonstration algorithm
+- * SortAlgorithm.java, Thu Nov 27 1995
+- *
+- * author Andrew Kitchen
+-
+-class ShearSortAlgorithm extends SortAlgorithm {
+-    private int Log, Rows, Cols;
+-
+-    void sort(int a[]) throws Exception {
+-	int pow=1, div=1;
+-	int h[];
+-
+-	for(int i=1; i*i<=a.length; i++) 
+-	    if (a.length % i == 0) div = i;
+-	Rows = div; Cols = a.length / div;
+-	for(Log=0; pow<=Rows; Log++) 
+-	    pow = pow * 2;
+-
+-	h = new int[Rows];
+-	for (int i=0; i<Rows; i++)
+-	    h[i]=i*Cols;
+-
+-	for (int k=0; k<Log; k++) {
+-	    for (int j=0; j<Cols/2; j++) {
+-		for (int i=0; i<Rows; i++)
+-	            sortPart1(a,i*Cols,(i+1)*Cols,1,(i%2==0?true:false));
+-		apause(h);
+-		for (int i=0; i<Rows; i++)
+-	            sortPart2(a,i*Cols,(i+1)*Cols,1,(i%2==0?true:false));
+-		apause(h);
+-	    }
+-	    for (int j=0; j<Rows/2; j++) {
+-		for (int i=0; i<Cols; i++)
+-	            sortPart1(a,i,Rows*Cols+i,Cols,true);
+-		apause(h);
+-		for (int i=0; i<Cols; i++)
+-	            sortPart2(a,i,Rows*Cols+i,Cols,true);
+-	        apause(h);
+-	    }
+-	}
+-	for (int j=0; j<Cols/2; j++) {
+-	    for (int i=0; i<Rows; i++)
+-	        sortPart1(a,i*Cols,(i+1)*Cols,1,true);
+-	    apause(h);
+-	    for (int i=0; i<Rows; i++)
+-	        sortPart2(a,i*Cols,(i+1)*Cols,1,true);
+-	    apause(h);
+-	}
+-	for (int i=0; i<Rows; i++)
+-	    h[i]=-1;
+-	apause(h);
+-    }
+-
+-    private void sortPart1(int a[], int Lo, int Hi, int Nx, boolean Up) throws Exception {
+-	    for (int j = Lo; j+Nx<Hi; j+=2*Nx) 
+-		if ((Up && a[j] > a[j+Nx]) || !Up && a[j] < a[j+Nx]) {
+-		    int T = a[j];
+-		    a[j] = a[j+Nx];
+-		    a[j+Nx] = T;
+-		}
+-    }
+-
+-    private void sortPart2(int a[], int Lo, int Hi, int Nx, boolean Up) throws Exception {
+-	    for (int j = Lo+Nx; j+Nx<Hi; j+=2*Nx) 
+-		if ((Up && a[j] > a[j+Nx]) || !Up && a[j] < a[j+Nx]) {
+-		    int T = a[j];
+-		    a[j] = a[j+Nx];
+-		    a[j+Nx] = T;
+-		}
+-    }
+-}
+-
+-*/
+\ No newline at end of file
+Index: stmath.h
+===================================================================
+--- stmath.h	(revision 5)
++++ stmath.h	(working copy)
+@@ -9,20 +9,17 @@
+ #endif
+ 
+ 
++#include "/src/stglib/stglib.h"
+ 
+ #ifndef STGLIB_STMATH
+ #define STGLIB_STMATH
+ 
+-#pragma message("using stmath.h")
+-
+-#include "/src/stglib/stglib.h"
+-
+ template <class TYPE> class StAverage
+ {
+ public:
+ 	TYPE _Total;
+ 	TYPE _Average;
+-	StSize _Over;
++	StByte _Over;
+ 
+ 	StAverage()
+ 	{
+@@ -30,14 +27,14 @@
+ 		_Average=0;
+ 		_Over=0;
+ 	}
+-	StAverage(StSize counts)
++	StAverage(StByte counts)
+ 	{
+ 		_Total=0;
+ 		_Average=0;
+ 		_Over=counts;
+ 	}
+ 
+-	void operator()(StSize counts)
++	operator()(StByte counts)
+ 	{
+ 		_Over=counts;
+ 	}
+@@ -66,7 +63,7 @@
+ public:
+ 	StRandom()
+ 	{
+-		srand((unsigned int)time(0));
++		srand(time(0));
+ 	}
+ 
+ 	inline int operator()(int range)
+@@ -75,19 +72,4 @@
+ 	}
+ };
+ 
+-long StFixedSqrt(long num) 
+-{
+-    if (!num)
+-		return(0);
+-    long n=(num/2)+1;
+-    long n1=(n+(num/n))/2;
+-    while (n1<n)
+-	{
+-        n=n1;
+-        n1=(n+(num/n))/2;
+-    }
+-    return(n);
+-}
+-
+-
+ #endif
+Index: strect.h
+===================================================================
+--- strect.h	(revision 5)
++++ strect.h	(working copy)
+@@ -8,7 +8,7 @@
+ #ifndef STGLIB_STRECT
+ #define STGLIB_STRECT
+ 
+-#pragma message("using strect.h")
++#include "/src/stglib/stwin32.h"
+ 
+ #include "/src/stglib/stglib.h"
+ 
+@@ -176,7 +176,7 @@
+ 	inline operator long();
+ 	inline void operator+=(long);
+ 	inline void operator-=(long);
+-	inline bool operator=(const long);
++	inline operator=(const long);
+ };
+ 
+ class StRectH
+@@ -189,7 +189,7 @@
+ 	inline operator long();
+ 	inline void operator+=(long);
+ 	inline void operator-=(long);
+-	inline bool operator=(const long);
++	inline operator=(const long);
+ };
+ 
+ class StRectSize
+@@ -201,7 +201,7 @@
+ 	~StRectSize(){}
+ 	inline bool operator==(StRectSize &);
+ 	inline bool operator<(StRectSize &);
+-	inline bool operator=(StPoint &);
++	inline operator=(StPoint &);
+ };
+ 
+ class StRectZoom
+@@ -399,12 +399,12 @@
+ 	return(rect->Y2-rect->Y1);
+ };
+ 
+-inline bool StRectW::operator=(const long value)
++inline StRectW::operator=(const long value)
+ {
+ 	rect->X2=rect->X1+value;
+ 	rect->NotifyChange();
+ }
+-inline bool StRectH::operator=(const long value)
++inline StRectH::operator=(const long value)
+ {
+ 	rect->Y2=rect->Y1+value;
+ 	rect->NotifyChange();
+@@ -445,7 +445,7 @@
+ 		return(false);
+ 	return(true);
+ }
+-inline bool StRectSize::operator=(StPoint &size)
++inline StRectSize::operator=(StPoint &size)
+ {
+ 	rect->X2=rect->X1+size.X;
+ 	rect->Y2=rect->Y1+size.Y;
+Index: sttime.h
+===================================================================
+--- sttime.h	(revision 5)
++++ sttime.h	(working copy)
+@@ -3,19 +3,16 @@
+ 
+ // math functions
+ 
++// Make sure we include normal time definitions
++#ifndef _INC_TIME
++#include <time.h>
++#endif
+ 
+ #include "/src/stglib/stglib.h"
+ 
+ #ifndef STGLIB_STTIME
+ #define STGLIB_STTIME
+ 
+-#pragma message("using sttime.h")
+-
+-// Make sure we include normal time definitions
+-#ifndef _INC_TIME
+-#include <time.h>
+-#endif
+-
+ class StTimer
+ {
+ 	time_t start_time;
+@@ -31,81 +28,11 @@
+ 	StSize SecondsLeft(void)
+ 	{
+ 		time_t now=time(0);
+-		StSize elapsed=(StSize)(now-start_time);
++		StSize elapsed=now-start_time;
+ 		if (elapsed<wait_seconds)
+ 			return(elapsed-wait_seconds);
+ 		return(0);
+ 	}
+ };
+ 
+-		//UNIX maintains date and time as seconds past Jan 1, 1970.  Convert to Excel use with
+-		//= DATE(1970, 1, 1) + (A1/24/60/60) 
+-		//=(C1/86400)+DATE(1970,1,1) 
+-		//
+-		//Excel stores a date as the number of days since Dec 31, 1899. So you need
+-		//to convert the Unix time from seconds to days, then add the date value for
+-		//the Unix base date. Assuming the Unix date is in A1, this should work:
+-		//  =(A1/86400+DATE(1970,1,1) 
+-
+-		// Reverse:
+-		// subtract 25569.00
+-		// multiply by 86400
+-
+-
+-class StDate
+-{
+-	time_t time;
+-	StString buf;
+-
+-public:
+-	StDate(time_t value)
+-	{
+-		time=value;
+-	}
+-
+-	StDate(double excel_format)
+-	{
+-		time=(long)((excel_format-25569.0)*86400.0);
+-	}
+-
+-	StString &YYYYMMDD(void)
+-	{
+-		struct tm *tm=gmtime(&time);
+-
+-		!buf;
+-
+-		buf._Dec(1900+tm->tm_year,4);
+-		buf<<"-";
+-		buf._Dec(tm->tm_mon+1,2);
+-		buf<<"-";
+-		buf._Dec(tm->tm_mday,2);
+-
+-		return(buf);
+-	}
+-
+-};
+-
+-class StTime
+-{
+-	time_t _Time;
+-	StString buf;
+-
+-public:
+-	StTime()
+-	{
+-		_Time=time(0);
+-	}
+-
+-	StSize operator~(void)
+-	{
+-		time_t _Now=time(0);
+-		return((StSize)(_Now-_Time));
+-	}
+-
+-	StTime& operator!()
+-	{
+-		_Time=time(0);
+-		return(*this);
+-	}
+-};
+ #endif
+Index: stwave.h
+===================================================================
+--- stwave.h	(revision 5)
++++ stwave.h	(working copy)
+@@ -4,8 +4,7 @@
+ #ifndef STGLIB_STWAVE
+ #define STGLIB_STWAVE
+ 
+-#pragma message("using stwave.h")
+-
++#include "/src/stglib/stwin32.h"
+ #include "/src/stglib/stfile.h"
+ #include "/src/stglib/staudio.h"
+ 
+Index: stwin32.h
+===================================================================
+--- stwin32.h	(revision 5)
++++ stwin32.h	(working copy)
+@@ -4,8 +4,12 @@
+ #ifndef STGLIB_STWIN32
+ #define STGLIB_STWIN32
+ 
+-#pragma message("using stwin32.h")
++#ifndef _INC_WINDOWS
++#define STRICT
++#include <windows.h>
++#include <windowsx.h>
++#include <commdlg.h>
++#include <mmreg.h>
++#endif
+ 
+-#error STWIN32 IS DEPRECATED - REMOVE INCLUDE
+-
+ #endif
+Index: stgdi.h
+===================================================================
+--- stgdi.h	(revision 5)
++++ stgdi.h	(working copy)
+@@ -4,12 +4,6 @@
+ #ifndef STGLIB_STGDI
+ #define STGLIB_STGDI
+ 
+-#pragma message("using stgdi.h")
+-#ifdef STGLIB_STP_WIN32
+-#pragma comment(linker, "/defaultlib:user32.lib")
+-#pragma comment(linker, "/defaultlib:gdi32.lib")
+-#endif
+-
+ #include "/src/stglib/stglib.h"
+ 
+ // use StBitmap and StRect originally for StWindow
+@@ -20,12 +14,8 @@
+ 
+ #ifdef WIN32
+ 
++#include "/src/stglib/stwin32.h"
+ 
+-
+-
+-
+-
+-
+ LRESULT CALLBACK StGdiWndProc(HWND hWnd, UINT mesg, WPARAM wParam, LPARAM lParam);
+ 
+ WNDCLASS StGdi_WindowsClass;
+@@ -39,13 +29,11 @@
+ {
+ 	HWND hWnd;
+ 	StBitmap Image;
+-	int Changed;
+ 
+ public:
+ 	StGdi(const char *title)
+ 	{
+ 		_StGdi_MainWindow=this;
+-		Changed=1;
+ 
+ 		if (!StGdi_WindowsClass.lpszClassName)
+ 		{
+@@ -91,11 +79,6 @@
+ 
+ 	void Update(void)
+ 	{
+-		if (Changed)
+-		{
+-			InvalidateRect(hWnd,NULL,TRUE);
+-			Changed=0;
+-		}
+ 		HACCEL hAccelTable=NULL;
+ 		MSG msg;
+ 		while (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) 
+@@ -133,16 +116,11 @@
+ 	{
+ 		StColor white(255,255,255);
+ 		Image(x,y)=white;
+-		Changed=1;
++		// invalidate image here to force repaint
++//		StRect repaint;
++//		repaint(x,y,x,y);
++		InvalidateRect(hWnd,NULL,TRUE);
+ 	}
+-
+-	inline StPixel& operator()(long x,long y)
+-	{
+-		Changed=1;
+-		return Image(x,y);
+-	}
+-
+-
+ };
+ 
+ LRESULT CALLBACK StGdiWndProc(HWND hWnd, UINT mesg, 
+Index: ststringbuf.h
+===================================================================
+--- ststringbuf.h	(revision 5)
++++ ststringbuf.h	(working copy)
+@@ -1,246 +1,244 @@
+-// STGLIB/ststringbuf.h
+-// wrap ststring with stbase
+-
+-#include "/src/stglib/stglib.h"
+-#include "/src/stglib/ststring.h"
++// STGLIB/ststringbuf.h
++// wrap ststring with stbase
++
++#include "/src/stglib/stglib.h"
++#include "/src/stglib/ststring.h"
+ #include "/src/stglib/stbuffer.h"
++
++#ifndef STGLIB_STSTRINGBUF
++#define STGLIB_STSTRINGBUF
+ 
+-#ifndef STGLIB_STSTRINGBUF
+-#define STGLIB_STSTRINGBUF
+-
+-#pragma message("using ststringbuf.h")
+-
+ #error OBSOLETE
+-
+-class StStringBufSection;
+-
+-class StStringBuf:public StStringFunctions<StBuffer>
+-{
+-	friend class StStringBufSection;
+-//protected:
+-//	StString _Storage;
+-
+-public: 
+-	StStringBuf()
+-	{
+-	}
+-
+-	virtual ~StStringBuf()
+-	{
+-	}
+-
+-	// allow array to duplicate storage to prevent pointer/alloc corruption!
+-	StStringBuf& operator= (StStringBuf& copyfrom)
+-	{
+-//		(*this)=copyfrom._Storage;
++
++class StStringBufSection;
++
++class StStringBuf:public StStringFunctions<StBuffer>
++{
++	friend class StStringBufSection;
++//protected:
++//	StString _Storage;
++
++public: 
++	StStringBuf()
++	{
++	}
++
++	virtual ~StStringBuf()
++	{
++	}
++
++	// allow array to duplicate storage to prevent pointer/alloc corruption!
++	StStringBuf& operator= (StStringBuf& copyfrom)
++	{
++//		(*this)=copyfrom._Storage;
+ 		StBuffer::operator=(copyfrom);
+-		return(*this);
+-	}
+-
+-/*	virtual StSize _Read(StBase &Source)
+-	{
+-		// read data from source class
+-		StSize Space=_Storage._ArraySize-_Storage._ArrayUsed;
+-		StSize Avail=Source._Available();
+-
+-		if (!Avail)
+-		{
+-			// if source doesn't report available size,
+-			// presume some logical default
+-			Avail=1024;
+-		}
+-
+-		if (Space<Avail)
+-		{
+-			// resize array to take in more data
+-			_Storage._ArrayResize(_Storage._ArrayUsed+Avail);
+-			Space=_Storage._ArraySize-_Storage._ArrayUsed;
+-		}
+-
+-		StSize Got=Source._Read(_Storage._ArrayPtr+_Storage._ArrayUsed,Space);
+-		if (Source._Error) return(_Err(Source));
+-		_Storage._ArrayUsed+=Got;
+-		return(Got);
+-	}
+-	virtual StSize _Write(StBase &Destination)
+-	{
+-		StSize Available=_Storage._ArrayUsed;
+-
+-		if (!Available)
+-			return(0);
+-
+-		StSize Wrote=Destination._Write(_Storage._ArrayPtr,Available);
+-		if (Destination._Error) return(_Err(Destination));
+-		return(Wrote);
+-	}
+-
+-	
+-	
+-	
+-	virtual StSize _Available(void)
+-	{
+-		return(~_Storage);
+-	}
+-
++		return(*this);
++	}
++
++/*	virtual StSize _Read(StBase &Source)
++	{
++		// read data from source class
++		StSize Space=_Storage._ArraySize-_Storage._ArrayUsed;
++		StSize Avail=Source._Available();
++
++		if (!Avail)
++		{
++			// if source doesn't report available size,
++			// presume some logical default
++			Avail=1024;
++		}
++
++		if (Space<Avail)
++		{
++			// resize array to take in more data
++			_Storage._ArrayResize(_Storage._ArrayUsed+Avail);
++			Space=_Storage._ArraySize-_Storage._ArrayUsed;
++		}
++
++		StSize Got=Source._Read(_Storage._ArrayPtr+_Storage._ArrayUsed,Space);
++		if (Source._Error) return(_Err(Source));
++		_Storage._ArrayUsed+=Got;
++		return(Got);
++	}
++	virtual StSize _Write(StBase &Destination)
++	{
++		StSize Available=_Storage._ArrayUsed;
++
++		if (!Available)
++			return(0);
++
++		StSize Wrote=Destination._Write(_Storage._ArrayPtr,Available);
++		if (Destination._Error) return(_Err(Destination));
++		return(Wrote);
++	}
++
++	
++	
++	
++	virtual StSize _Available(void)
++	{
++		return(~_Storage);
++	}
++
+ */
++
++};
+ 
+-};
+ 
+-
+ // FIX THIS
+-
+-class StStringBufSection:public StBase
+-{
+-protected:
++
++class StStringBufSection:public StBase
++{
++protected:
+ //	StArray<StByte> *_pStorage;
+-	StStringBuf *_pSB;
+-	StSize _Offset;
+-	StSize _Length;
+-
+-public:
+-	StStringBufSection()
+-	{
+-		_pSB=0;
+-		_Offset=0;
+-		_Length=0;
+-	}
+-
+-	StStringBufSection(StStringBuf &sb)
+-	{
++	StStringBuf *_pSB;
++	StSize _Offset;
++	StSize _Length;
++
++public:
++	StStringBufSection()
++	{
++		_pSB=0;
++		_Offset=0;
++		_Length=0;
++	}
++
++	StStringBufSection(StStringBuf &sb)
++	{
+ //		_pStorage=&(sb._Storage);
+-		_pSB=&sb;
+-		_Offset=0;
+-		_Length=0;
+-	}
++		_pSB=&sb;
++		_Offset=0;
++		_Length=0;
++	}
++
++	virtual ~StStringBufSection()
++	{
++	}
++
++	inline void _SectionMatch(StStringBufSection &sbs)
++	{
++		_Offset=sbs._Offset;
++		_Length=sbs._Length;
++	}
+ 
+-	virtual ~StStringBufSection()
+-	{
+-	}
++
++	// allow array to duplicate storage to prevent pointer/alloc corruption!
++/*	StStringBuf& operator= (StStringBuf& copyfrom)
++	{
++		_Storage=copyfrom._Storage;
++		return(*this);
++	}
++*/
+ 
+-	inline void _SectionMatch(StStringBufSection &sbs)
+-	{
+-		_Offset=sbs._Offset;
+-		_Length=sbs._Length;
+-	}
+ 
+-
+-	// allow array to duplicate storage to prevent pointer/alloc corruption!
+-/*	StStringBuf& operator= (StStringBuf& copyfrom)
+-	{
+-		_Storage=copyfrom._Storage;
+-		return(*this);
+-	}
+-*/
+-
+-
+-	inline StStringBufSection& operator()(StStringBuf &sb)
+-	{
++	inline StStringBufSection& operator()(StStringBuf &sb)
++	{
+ //		_pStorage=&(sb._Storage);
+-		_pSB=&sb;
+-		return(*this);
+-	}
+-
+-	inline StStringBufSection& operator()(StStringBufSection &sbs)
+-	{
++		_pSB=&sb;
++		return(*this);
++	}
++
++	inline StStringBufSection& operator()(StStringBufSection &sbs)
++	{
+ //		_pStorage=sbs._pStorage;
+-		_pSB=sbs._pSB;
+-		_Offset=sbs._Offset;
+-		_Length=sbs._Length; //~sbs;
+-		return(*this);
+-	}
+-
+-	inline StStringBufSection& operator()(StSize offset,StSize length)
+-	{
+-		_Offset=offset;
+-		_Length=length;
+-		return(*this);
+-	}
+-	inline StStringBufSection& operator()(StByte *ptr,StSize length)
+-	{
++		_pSB=sbs._pSB;
++		_Offset=sbs._Offset;
++		_Length=sbs._Length; //~sbs;
++		return(*this);
++	}
++
++	inline StStringBufSection& operator()(StSize offset,StSize length)
++	{
++		_Offset=offset;
++		_Length=length;
++		return(*this);
++	}
++	inline StStringBufSection& operator()(StByte *ptr,StSize length)
++	{
+ //		_Offset=ptr-((StByte*)(*_pStorage));
+-		_Offset=ptr-(StByte*)(*_pSB);
+-		_Length=length;
+-		return(*this);
+-	}
+-
+-	inline operator StByte *(void)
+-	{
+-		return(((StByte*)(*_pSB))+_Offset);
+-	}
+-/*	inline operator void *(void)
+-	{
+-		return(((StByte*)*_pStorage)+_Offset);
+-	}
+-	inline operator char *(void)
+-	{
+-		return((char*)((StByte*)*_pStorage)+_Offset);
+-	}
+-*/
+-  
+-//	inline StByte* operator&(void)
+-//	{
+-//		return(((StByte*)*_pStorage)+_Offset);
+-//	}
+-
+-
+-	// return ptr to start of storage as offset reference
+-//	inline StByte _Reference(void)
+-//	{
+-//		return((StByte)*_pStorage);
+-//	}
+-
+-	inline virtual void _Reset(void)
+-	{
+-		_Offset=0;
+-		_Length=~(*_pSB);
+-	}
+-
+-	inline void operator++(void)
+-	{
+-		++_Offset;
+-	}
+-	inline void operator--(void)
+-	{
+-		--_Offset;
+-	}
+-
+-	inline virtual StSize _Write(StByte *data,StSize size)
+-	{
+-		return(_Err(StErr_ReadOnly,"StStringBufSection","_Write"));
+-	}
+-
+-	inline virtual StSize _Read(StByte *data,StSize size)
+-	{
+-		if (size>_Length)
+-			size=_Length;
+-
+-		if (size)
+-		{
+-			memcpy(data,((StByte*)(*_pSB))+_Offset,size);
+-		}
+-		return(size);
+-	}
+-
+-	virtual StSize _Read(StBase &Source)
+-	{
+-		return(_Err(StErr_ReadOnly,"StStringBufSection","_Read"));
+-	}
+-	virtual StSize _Write(StBase &Destination)
+-	{
+-		if (!_Length)
+-			return(0);
+-
+-		StSize Wrote=Destination._Write(((StByte*)(*_pSB))+_Offset,_Length);
+-		if (Destination._Error) return(_Err(Destination));
+-		return(Wrote);
+-	}
+-	
+-	
+-	virtual StSize _Available(void)
+-	{
+-		return(_Length);
+-	}
+-
++		_Offset=ptr-(StByte*)(*_pSB);
++		_Length=length;
++		return(*this);
++	}
++
++	inline operator StByte *(void)
++	{
++		return(((StByte*)(*_pSB))+_Offset);
++	}
++/*	inline operator void *(void)
++	{
++		return(((StByte*)*_pStorage)+_Offset);
++	}
++	inline operator char *(void)
++	{
++		return((char*)((StByte*)*_pStorage)+_Offset);
++	}
++*/
++  
++//	inline StByte* operator&(void)
++//	{
++//		return(((StByte*)*_pStorage)+_Offset);
++//	}
++
++
++	// return ptr to start of storage as offset reference
++//	inline StByte _Reference(void)
++//	{
++//		return((StByte)*_pStorage);
++//	}
++
++	inline virtual void _Reset(void)
++	{
++		_Offset=0;
++		_Length=~(*_pSB);
++	}
++
++	inline void operator++(void)
++	{
++		++_Offset;
++	}
++	inline void operator--(void)
++	{
++		--_Offset;
++	}
++
++	inline virtual StSize _Write(StByte *data,StSize size)
++	{
++		return(_Err(StErr_ReadOnly,"StStringBufSection","_Write"));
++	}
++
++	inline virtual StSize _Read(StByte *data,StSize size)
++	{
++		if (size>_Length)
++			size=_Length;
++
++		if (size)
++		{
++			memcpy(data,((StByte*)(*_pSB))+_Offset,size);
++		}
++		return(size);
++	}
++
++	virtual StSize _Read(StBase &Source)
++	{
++		return(_Err(StErr_ReadOnly,"StStringBufSection","_Read"));
++	}
++	virtual StSize _Write(StBase &Destination)
++	{
++		if (!_Length)
++			return(0);
++
++		StSize Wrote=Destination._Write(((StByte*)(*_pSB))+_Offset,_Length);
++		if (Destination._Error) return(_Err(Destination));
++		return(Wrote);
++	}
++	
++	
++	virtual StSize _Available(void)
++	{
++		return(_Length);
++	}
++
+ 	bool operator==(char *s)
+ 	{
+ 		// this should be re-written to remove the
+@@ -253,30 +251,30 @@
+ 			return(false);
+ 		return(true);
+ 	}
+-	bool operator==(const char *s)
+-	{
+-		// this should be re-written to remove the
+-		// clib calls to improve speed
+-		StByte *ptr=(StByte*)(*this);
+-		StSize size=strlen(s);
+-		if (size!=~(*this))
+-			return(false);
+-		if (memcmp((char*)ptr,s,size))
+-			return(false);
+-		return(true);
+-	}
+-	bool operator!=(const char *s)
+-	{
+-		// this should be re-written to remove the
+-		// clib calls to improve speed
+-		StByte *ptr=(StByte*)(*this);
+-		StSize size=strlen(s);
+-		if (size!=~(*this))
+-			return(true);
+-		if (memcmp((char*)ptr,s,size))
+-			return(true);
+-		return(false);
+-	}
+-};
++	bool operator==(const char *s)
++	{
++		// this should be re-written to remove the
++		// clib calls to improve speed
++		StByte *ptr=(StByte*)(*this);
++		StSize size=strlen(s);
++		if (size!=~(*this))
++			return(false);
++		if (memcmp((char*)ptr,s,size))
++			return(false);
++		return(true);
++	}
++	bool operator!=(const char *s)
++	{
++		// this should be re-written to remove the
++		// clib calls to improve speed
++		StByte *ptr=(StByte*)(*this);
++		StSize size=strlen(s);
++		if (size!=~(*this))
++			return(true);
++		if (memcmp((char*)ptr,s,size))
++			return(true);
++		return(false);
++	}
++};
+ 
+-#endif
++#endif
+Index: stdump.h
+===================================================================
+--- stdump.h	(revision 5)
++++ stdump.h	(working copy)
+@@ -1,14 +1,11 @@
+ // STGLIB/ststringbuf.h
+ // wrap ststring with stbase
+ 
++#include "/src/stglib/stglib.h"
+ 
+ #ifndef STGLIB_STDUMP
+ #define STGLIB_STDUMP
+ 
+-#pragma message("using stdump.h")
+-
+-#include "/src/stglib/stglib.h"
+-
+ class StDump:public StBase
+ {
+ protected:
+@@ -49,7 +46,7 @@
+ 		unsigned char databyte;
+ 		static unsigned char buf[80];
+ 		unsigned char *pbuf;
+-		StSize value;
++		unsigned int value;
+ 
+ 		line=0;
+ 		while (size)
+@@ -60,7 +57,7 @@
+ 			pbuf+=4;
+ 			while (loop--)
+ 			{
+-				*--pbuf=hex_digit((char)(value&15));
++				*--pbuf=hex_digit(value&15);
+ 				value>>=4;
+ 			}
+ 			pbuf+=4;
+@@ -74,7 +71,7 @@
+ 
+ 				databyte=*(data+loop);
+ 				value=databyte>>4;
+-				*pbuf++=hex_digit((char)(value&15));
++				*pbuf++=hex_digit(value&15);
+ 				*pbuf++=hex_digit(databyte&15);
+ 				*pbuf++=' ';
+ 				loop++;
+Index: stserver.h
+===================================================================
+--- stserver.h	(revision 5)
++++ stserver.h	(working copy)
+@@ -6,11 +6,17 @@
+ #ifndef STGLIB_STSERVER
+ #define STGLIB_STSERVER
+ 
+-#pragma message("using stserver.h")
++// must include winsock2 before thread, since thread includes windows, which includes winsock.h
++#ifdef WIN32
++#ifndef SOCKET_ERROR
++#include <winsock2.h>
++#endif
++#endif
+ 
+-#include "/src/stglib/stthread.h"
+-#include "/src/stglib/stfifo.h"
+ 
++#include "/stglib/stthread.h"
++#include "/stglib/stfifo.h"
++
+ // This thread/class processes incoming connections
+ class StServiceThread:public StThread
+ {
+Index: stthread.h
+===================================================================
+--- stthread.h	(revision 5)
++++ stthread.h	(working copy)
+@@ -1,398 +1,418 @@
+-// STGLIB/stthread.h
+-// Copyright 1999,2002 by StG Net
++// STGLIB/stthread.h
++// Copyright 1999,2002 by StG Net
++
++// os-independant (win32 or posix) thread implementation
++
++#ifdef STGLIB_STGLIB
++#error Please include /stglib/stthread.h before /stglib/stglib.h
++#endif
++
++#ifndef STGLIB_STTHREAD
++#define STGLIB_STTHREAD
++
++#include "/src/stglib/stglib.h"
++
++// this code depends on the target api - if it wasn't included, try doing so
++#ifdef WIN32
++//############################################# WIN32 VERSION
++#ifndef _MT
++#error Please change project to use multithreaded library
++#endif
+ 
+-// os-independant (win32 or posix) thread implementation
+-
+-#ifdef STGLIB_STGLIB
+-#error Please include /stglib/stthread.h before /stglib/stglib.h
+-#endif
+-
+-#ifndef STGLIB_STTHREAD
+-#define STGLIB_STTHREAD
+-
+-#pragma message("using stthread.h")
+-
+-#include "/src/stglib/stglib.h"
+-
+-// this code depends on the target api - if it wasn't included, try doing so
+-#ifdef WIN32
+-//############################################# WIN32 VERSION
+-
++#define _WIN32_WINNT 0x0400
++
++#ifndef _INC_WINDOWS
++#include <windows.h>
++#endif
++#ifndef _INC_PROCESS
++#include <process.h>
++#endif
++
++// basic signal handling - single auto resetting trigger
++#define STTHREAD_STORAGE HANDLE _Thread_Event
++#define STTHREAD_CSTR _Thread_Event=::CreateEvent(NULL,FALSE,FALSE,NULL)
++#define STTHREAD_DSTR ::CloseHandle(_Thread_Event)
++
++#define STTHREAD_EVENT_SET ::SetEvent(_Thread_Event)
++#define STTHREAD_EVENT_WAIT ::WaitForSingleObject(_Thread_Event,INFINITE)
++
++#define STTHREAD_BEGIN _beginthread(_ThreadZero,0,this)
++
++#elif linux
++
++//############################################# LINUX VERSION
++#ifndef _REENTRANT
++#error Please add -D_REENTRANT to makefile!
++#endif
++
++
++
++#define STTHREAD_STACKSIZE 8192
++
++#define STTHREAD_STORAGE char *_ThreadStack; int _ThreadPid 
++#define STTHREAD_CSTR _ThreadStack=(char*)malloc(STTHREAD_STACKSIZE); _ThreadPid=getpid()
++#define STTHREAD_DSTR free(_ThreadStack)
++
++#define STTHREAD_EVENT_SET kill(_ThreadPid,SIGUSR1)
++#define STTHREAD_EVENT_WAIT pause()
++
++#define STTHREAD_BEGIN clone(_ThreadZero,_ThreadStack+STTHREAD_STACKSIZE,CLONE_VM|CLONE_FILES,this)
++
++#else
++//############################################# POSIX VERSION
++
++#error POSIX version not implemented
++
++#ifndef _REENTRANT
++#error Please add -D_REENTRANT to makefile!
++#endif
++
++#ifndef PTHREAD_ONCE_INIT
++#include <pthread.h>
++#endif
++
++#endif // if WIN32
++
++//********************************************* bring in mutex calls
++//#include "/stglib/stmutex.h"
++
++
++//********************************************* mutex class
++
++#ifdef WIN32
++//############################################# WIN32 VERSION
++
++
++
++class StMutex
++{
++	HANDLE hMutex;
++	unsigned locked;
++
++public:
++	StMutex()
++	{
++		locked=0;
++		hMutex=CreateMutex(NULL,FALSE,NULL);
++		if (!hMutex)
++			throw; // a fit
++	}
++	~StMutex()
++	{
++		if (locked)
++			ReleaseMutex(hMutex);
++		CloseHandle(hMutex);
++	}
++	inline void _MutexLock(void)
++	{
++//printf("MutexWait: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
++		switch (WaitForSingleObject(hMutex,INFINITE))
++		{
++		case WAIT_OBJECT_0:
++			break;
++
++		case WAIT_FAILED:
++		case WAIT_ABANDONED:
++		case WAIT_TIMEOUT:
++		default:
++			throw; // a fit
++			break;
++		}
++//printf("MutexLock: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
++		++locked;
++
++		// if the same thread ++'s a mutex, locked will go to >1
++	}
++
++	inline void _MutexUnlock(void)
++	{
++//printf("MutexUnLk: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
++		if (!locked)
++			throw;
++		--locked;
++		if (!ReleaseMutex(hMutex))
++			throw; // a fit
++	}
++	inline void operator++(void)
++	{
++		_MutexLock();
++	}
++	inline void operator--(void)
++	{
++		_MutexUnlock();
++	}
++	inline operator unsigned()
++	{
++		return(locked);
++	}
++};
++
++
+ #elif linux
+-
+ //############################################# LINUX VERSION
+-#ifndef _REENTRANT
+-#error Please add -D_REENTRANT to makefile!
+-#endif
+ 
+-
+-
+-#define STTHREAD_STACKSIZE 8192
+-
+-#define STTHREAD_STORAGE char *_ThreadStack; int _ThreadPid 
+-#define STTHREAD_CSTR _ThreadStack=(char*)malloc(STTHREAD_STACKSIZE); _ThreadPid=getpid()
+-#define STTHREAD_DSTR free(_ThreadStack)
+-
+-#define STTHREAD_EVENT_SET kill(_ThreadPid,SIGUSR1)
+-#define STTHREAD_EVENT_WAIT pause()
+-
+-#define STTHREAD_BEGIN clone(_ThreadZero,_ThreadStack+STTHREAD_STACKSIZE,CLONE_VM|CLONE_FILES,this)
+-
+-#else
+-//############################################# POSIX VERSION
+-
+-#error POSIX version not implemented
+-
+-#ifndef _REENTRANT
+-#error Please add -D_REENTRANT to makefile!
+-#endif
+-
+-#ifndef PTHREAD_ONCE_INIT
+-#include <pthread.h>
+-#endif
+-
+-#endif // if WIN32
+-
+-//********************************************* bring in mutex calls
+-//#include "/stglib/stmutex.h"
+-
+-
+-//********************************************* mutex class
+-
+-#ifdef WIN32
+-//############################################# WIN32 VERSION
+-
+-
+-
+-class StMutex
+-{
+-	HANDLE hMutex;
+-	unsigned locked;
+-
+-public:
+-	StMutex()
+-	{
+-		locked=0;
+-		hMutex=CreateMutex(NULL,FALSE,NULL);
+-		if (!hMutex)
+-			throw; // a fit
+-	}
+-	~StMutex()
+-	{
+-		if (locked)
+-			ReleaseMutex(hMutex);
+-		CloseHandle(hMutex);
+-	}
+-	inline void _MutexLock(void)
+-	{
+-//printf("MutexWait: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
+-		switch (WaitForSingleObject(hMutex,INFINITE))
+-		{
+-		case WAIT_OBJECT_0:
+-			break;
+-
+-		case WAIT_FAILED:
+-		case WAIT_ABANDONED:
+-		case WAIT_TIMEOUT:
+-		default:
+-			throw; // a fit
+-			break;
+-		}
+-//printf("MutexLock: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
+-		++locked;
+-
+-		// if the same thread ++'s a mutex, locked will go to >1
+-	}
+-
+-	inline void _MutexUnlock(void)
+-	{
+-//printf("MutexUnLk: %08X by %08X was locked=%d\n",this,GetCurrentThreadId(),locked);
+-		if (!locked)
+-			throw;
+-		--locked;
+-		if (!ReleaseMutex(hMutex))
+-			throw; // a fit
+-	}
+-	inline void operator++(void)
+-	{
+-		_MutexLock();
+-	}
+-	inline void operator--(void)
+-	{
+-		_MutexUnlock();
+-	}
+-	inline operator unsigned()
+-	{
+-		return(locked);
+-	}
+-};
+-
+-
+-#elif linux
+-//############################################# LINUX VERSION
+-
+-#else
+-
+-//############################################# POSIX VERSION
+-
+-#error POSIX UNFINISHED
+-
+-class StMutex
+-{
+-	pthread_mutex_t posix_mutex;
+-
+-public:
+-	StMutex()
+-	{
+-		pthread_mutex_init(&posix_mutex,NULL);
+-	}
+-	~StMutex()
+-	{
+-		pthread_mutex_destroy(&posix_mutex);
+-	}
+-
+-	inline void _MutexLock(void)
+-	{
+-		pthread_mutex_lock(&posix_mutex);
+-	}
+-
+-	inline void _MutexUnlock(void)
+-	{
+-		pthread_mutex_unlock(&posix_mutex);
+-	}
+-
+-	inline void operator++(void)
+-	{
+-		_MutexLock();
+-	}
+-	inline void operator--(void)
+-	{
+-		_MutexUnlock();
+-	}
+-};
+-#endif
+-
+-
+-//********************************************* signal class
+-class StSignal
+-{
+-	StSize Value; // can be used as count of bytes or items
+-public:
+-	StSignal()
+-	{
+-		Value=0;
+-	}
+-	~StSignal()
+-	{
+-	}
+-
+-	// this function calls StThreads class (defined later)
+-	void SendSignalToThreads(StSignal *signal);
+-
+-	inline void operator=(StSize new_value)
+-	{
+-		if (new_value && !Value)
+-		{
+-			// value has gone from zero to non-zero - signal!
+-			Value=new_value;
+-			SendSignalToThreads(this);
+-		}
+-		else
+-			Value=new_value;
+-	}
+-	inline operator StSize()
+-	{
+-		return(Value);
+-	}
+-	inline StSize operator++(int)
+-	{
+-		StSize old_value=Value;
+-		Value++;
+-		if (Value && !old_value)
+-		{
+-			SendSignalToThreads(this);
+-		}
+-		return(old_value);
+-	}
+-	inline StSize operator--(int)
+-	{
+-		StSize old_value=Value;
+-		Value--;
+-		return(old_value);
+-	}
+-};
+-
+-
+-
+-//********************************************* StThreads class (master control)
+-
+-#include "/src/stglib/stbox.h"
+-
+-// class prototype for object going in box
+-class StThread;
+-
+-// box to contain a list of the threads in existance
+-StBox<StThread> StThreads;
+-
+-//********************************************* thread class
+-
+-class StThread
+-{
+-	// list of signals that thread is waiting on
+-	StArray<StSignal*> _ThreadWaiting;
+-
+-	STTHREAD_STORAGE;
+-
+-public:
+-	StSignal _ThreadShutdownRequested;
+-	StSignal _ThreadNotRunning;
+-
+-	StThread()
+-	{
+-		STTHREAD_CSTR;
+-
+-		_ThreadNotRunning++;
+-
+-		// add to list of threads
+-		StThreads+=this;
+-	}
+-	virtual ~StThread()
+-	{
+-		// ask thread to stop please
+-		_ThreadShutdownRequested++;
+-
+-		// and wait for it to exit
+-		_ThreadWait(_ThreadNotRunning);
+-
+-		STTHREAD_DSTR;
+-
+-		// remove from list of threads
+-		StThreads-=this;
+-	}
+-	inline void _ThreadWait(StSignal *signal,...)
+-	{
+-		va_list arglist;
+-		unsigned index=0;
+-
+-		!_ThreadWaiting;
+-		va_start(arglist,signal);
+-		while (signal)
+-		{
+-			_ThreadWaiting<<signal;
+-			signal=va_arg(arglist,StSignal*);
+-		}
+-		va_end(arglist);
+-
+-		// array of signals to wait on is loaded
+-		if (!~_ThreadWaiting)
+-			return;
+-
+-		while (1)
+-		{
+-			index=0;
+-			while (index<~_ThreadWaiting)
+-			{
+-				if (*(_ThreadWaiting[index++]))
+-				{
+-					!_ThreadWaiting;
+-					return;
+-				}
+-			}
+-			STTHREAD_EVENT_WAIT;
+-		}
+-	}
+-	inline void _ThreadWait(StSignal &signal)
+-	{
+-		!_ThreadWaiting;
+-
+-		if (_ThreadShutdownRequested &&
+-			&signal==&_ThreadNotRunning)
+-		{
+-			// ignore shutdown signal, since
+-			// it's already gone off and we're
+-			// waiting for thread to finish
+-			;
+-		}
+-		else
+-			_ThreadWaiting<<&_ThreadShutdownRequested;
+-
+-		_ThreadWaiting<<&signal;
+-
+-
+-		while (1)
+-		{
+-			StSize index=0;
+-			while (index<~_ThreadWaiting)
+-			{
+-				if (*(_ThreadWaiting[index++]))
+-				{
+-					!_ThreadWaiting;
+-					return;
+-				}
+-			}
+-			STTHREAD_EVENT_WAIT;
+-		}
+-	}
+-
+-
+-	inline void _ThreadSignal(StSignal *signal)
+-	{
+-		if (!~_ThreadWaiting)
+-			return;
+-
+-		unsigned index=0;
+-		while (index<~_ThreadWaiting)
+-		{
+-			if (signal==_ThreadWaiting[index])
+-			{
+-				// found a signal that was being waited on
+-
+-				STTHREAD_EVENT_SET;
+-				break;
+-			}
+-			index++;
+-		}
+-	}
+-
+-	// pure virtual declaration for actual thread "handler" function
+-	virtual void _Thread(void)=0;
+-
+-	// startup the thread
+-	friend 
+-#ifdef WIN32
+-		void
+-#else
+-		int 
+-#endif
+-		_ThreadZero(void *that)
+-	{
+-		((StThread*)that)->_ThreadNotRunning=0;
+-		((StThread*)that)->_Thread();
+-		((StThread*)that)->_ThreadNotRunning++;
+-
+-#ifndef WIN32
+-		return(0);
+-#endif
+-
+-	}
+-
+-	// this function must be called to kick start the thread function
+-	void _ThreadStart(void)
+-	{
+-		if (_ThreadNotRunning)
+-			STTHREAD_BEGIN;
+-	}
+-};
+-
+-
+-//********************************************* functions depending on StThreads
+-
+-inline void StSignal::SendSignalToThreads(StSignal *signal)
+-{
+-	StBoxRef<StThread> scan(StThreads);
+-	while (++scan)
+-		scan->_ThreadSignal(signal);
+-}
+-
+-
+-#endif
++#else
++
++//############################################# POSIX VERSION
++
++#error POSIX UNFINISHED
++
++class StMutex
++{
++	pthread_mutex_t posix_mutex;
++
++public:
++	StMutex()
++	{
++		pthread_mutex_init(&posix_mutex,NULL);
++	}
++	~StMutex()
++	{
++		pthread_mutex_destroy(&posix_mutex);
++	}
++
++	inline void _MutexLock(void)
++	{
++		pthread_mutex_lock(&posix_mutex);
++	}
++
++	inline void _MutexUnlock(void)
++	{
++		pthread_mutex_unlock(&posix_mutex);
++	}
++
++	inline void operator++(void)
++	{
++		_MutexLock();
++	}
++	inline void operator--(void)
++	{
++		_MutexUnlock();
++	}
++};
++#endif
++
++
++//********************************************* signal class
++class StSignal
++{
++	StSize Value; // can be used as count of bytes or items
++public:
++	StSignal()
++	{
++		Value=0;
++	}
++	~StSignal()
++	{
++	}
++
++	// this function calls StThreads class (defined later)
++	void SendSignalToThreads(StSignal *signal);
++
++	inline void operator=(StSize new_value)
++	{
++		if (new_value && !Value)
++		{
++			// value has gone from zero to non-zero - signal!
++			Value=new_value;
++			SendSignalToThreads(this);
++		}
++		else
++			Value=new_value;
++	}
++	inline operator StSize()
++	{
++		return(Value);
++	}
++	inline StSize operator++(int)
++	{
++		StSize old_value=Value;
++		Value++;
++		if (Value && !old_value)
++		{
++			SendSignalToThreads(this);
++		}
++		return(old_value);
++	}
++	inline StSize operator--(int)
++	{
++		StSize old_value=Value;
++		Value--;
++		return(old_value);
++	}
++};
++
++
++
++//********************************************* StThreads class (master control)
++
++#include "/src/stglib/stbox.h"
++
++// class prototype for object going in box
++class StThread;
++
++// box to contain a list of the threads in existance
++StBox<StThread> StThreads;
++
++//********************************************* thread class
++
++class StThread
++{
++	// list of signals that thread is waiting on
++	StArray<StSignal*> _ThreadWaiting;
++
++	STTHREAD_STORAGE;
++
++public:
++	StSignal _ThreadShutdownRequested;
++	StSignal _ThreadNotRunning;
++
++	StThread()
++	{
++		STTHREAD_CSTR;
++
++		_ThreadNotRunning++;
++
++		// add to list of threads
++		StThreads+=this;
++	}
++	virtual ~StThread()
++	{
++		// ask thread to stop please
++		_ThreadShutdownRequested++;
++
++		// and wait for it to exit
++		_ThreadWait(_ThreadNotRunning);
++
++		STTHREAD_DSTR;
++
++		// remove from list of threads
++		StThreads-=this;
++	}
++	inline void _ThreadWait(StSignal *signal,...)
++	{
++		va_list arglist;
++		unsigned index=0;
++
++		!_ThreadWaiting;
++		va_start(arglist,signal);
++		while (signal)
++		{
++			_ThreadWaiting<<signal;
++			signal=va_arg(arglist,StSignal*);
++		}
++		va_end(arglist);
++
++		// array of signals to wait on is loaded
++		if (!~_ThreadWaiting)
++			return;
++
++		while (1)
++		{
++			index=0;
++			while (index<~_ThreadWaiting)
++			{
++				if (*(_ThreadWaiting[index++]))
++				{
++					!_ThreadWaiting;
++					return;
++				}
++			}
++			STTHREAD_EVENT_WAIT;
++		}
++	}
++	inline void _ThreadWait(StSignal &signal)
++	{
++		!_ThreadWaiting;
++
++		if (_ThreadShutdownRequested &&
++			&signal==&_ThreadNotRunning)
++		{
++			// ignore shutdown signal, since
++			// it's already gone off and we're
++			// waiting for thread to finish
++			;
++		}
++		else
++			_ThreadWaiting<<&_ThreadShutdownRequested;
++
++		_ThreadWaiting<<&signal;
++
++
++		while (1)
++		{
++			StSize index=0;
++			while (index<~_ThreadWaiting)
++			{
++				if (*(_ThreadWaiting[index++]))
++				{
++					!_ThreadWaiting;
++					return;
++				}
++			}
++			STTHREAD_EVENT_WAIT;
++		}
++	}
++
++
++	inline void _ThreadSignal(StSignal *signal)
++	{
++		if (!~_ThreadWaiting)
++			return;
++
++		unsigned index=0;
++		while (index<~_ThreadWaiting)
++		{
++			if (signal==_ThreadWaiting[index])
++			{
++				// found a signal that was being waited on
++
++				STTHREAD_EVENT_SET;
++				break;
++			}
++			index++;
++		}
++	}
++
++	// pure virtual declaration for actual thread "handler" function
++	virtual void _Thread(void)=0;
++
++	// startup the thread
++	friend 
++#ifdef WIN32
++		void
++#else
++		int 
++#endif
++		_ThreadZero(void *that)
++	{
++		((StThread*)that)->_ThreadNotRunning=0;
++		((StThread*)that)->_Thread();
++		((StThread*)that)->_ThreadNotRunning++;
++
++#ifndef WIN32
++		return(0);
++#endif
++
++	}
++
++	// this function must be called to kick start the thread function
++	void _ThreadStart(void)
++	{
++		if (_ThreadNotRunning)
++			STTHREAD_BEGIN;
++	}
++};
++
++
++//********************************************* functions depending on StThreads
++
++inline void StSignal::SendSignalToThreads(StSignal *signal)
++{
++	StBoxRef<StThread> scan(StThreads);
++	while (++scan)
++		scan->_ThreadSignal(signal);
++}
++
++
++#endif
+Index: stwindow.h
+===================================================================
+--- stwindow.h	(revision 5)
++++ stwindow.h	(working copy)
+@@ -2,10 +2,8 @@
+ #ifndef STGLIB_STWINDOW
+ #define STGLIB_STWINDOW
+ 
+-#pragma message("using stwindow.h")
++#include "/stglib/stwin32.h"
+ 
+-include "/stglib/stwin32.h"
+-
+ #include "/stglib/stglib.h"
+ #include "/stglib/strect.h"
+ #include "/stglib/stbox.h"
+Index: stsockudp.h
+===================================================================
+--- stsockudp.h	(revision 5)
++++ stsockudp.h	(working copy)
+@@ -6,133 +6,17 @@
+ #ifndef STGLIB_STUDP
+ #define STGLIB_STUDP
+ 
+-#pragma message("using studp.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stsock.h"
+ 
+ 
+-// this probably needs to be put in it's own stpacket.h
+-/* OKAY, THIS DOESN"T WORK - packet doesn't know how to get address from SockUdp!
+-class StUdpPacket:public StBase
+-{
+-public:
+-	StIpAddr Address;
+-
+-	StBase *Data;
+-
+-	StUdpPacket(StBase &data_buffer)
+-	{
+-		Data=&data_buffer;
+-	}
+-
+-	virtual StSize _Read(StBase &Source)
+-	{
+-		StSize got=Data->_Read(Source);
+-		Address=
+-		return();
+-	}
+-	virtual StSize _Write(StBase &Destination)
+-	{
+-		return(Data->_Write(Destination));
+-	}
+-
+-};
+-
+-*/
+-
+-
+ class StSockUdp:public StSock
+ {
+ public:
+-	StIpAddr _PacketAddress;
+-	int _BroadcastEnable;
+-
+ 	// normal usage
+ 	StSockUdp():StSock(IPPROTO_UDP)
+ 	{
+-		_BroadcastEnable=0;
+ 	}
+-
+-	StSockUdp(StIpAddr &addr):StSock(IPPROTO_UDP)
+-	{
+-		_BroadcastEnable=0;
+-		// set address and ask for connection
+-		_SockBind(addr);
+-	}
+-
+-	StSize _EnableBroadcast(void)
+-	{
+-		_BroadcastEnable=1;
+-		// enable broadcasts on the socket
+-		if (setsockopt(_socket_handle,SOL_SOCKET,SO_BROADCAST,(char*)&_BroadcastEnable,sizeof(_BroadcastEnable))==SOCKET_ERROR)
+-			return(_SockError("Broadcast-enable"));
+-		return(0);
+-	}
+-
+-
+-	StSize _Write(StByte *data,StSize size)
+-	{
+-		StIpAddr TransmitAddress(_PacketAddress);
+-
+-		// is it a boadcast?
+-		if (_PacketAddress._sockaddr.sin_addr.s_addr==INADDR_ANY)
+-		{
+-			if (!_BroadcastEnable)
+-				if (_EnableBroadcast())
+-					return(_Error);
+-
+-			// if this port was bound to an IP, need to use broadcast address format
+-			if (_IpAddr!=0)
+-				// mangle TransmitAddress to _IpAddr
+-				TransmitAddress=_IpAddr|~_IpAddr._GetNetmask();
+-			else
+-				TransmitAddress(INADDR_BROADCAST);
+-
+-			TransmitAddress._SetPort(_PacketAddress._GetPort());
+-		}
+-
+-		fd_set fd;
+-		FD_ZERO(&fd);
+-		FD_SET(_socket_handle,&fd);
+-		switch (select(_socket_handle+1,0,&fd,0,_socket_timeout))
+-		{
+-		case SOCKET_ERROR:
+-			return(_SockError("Read-select"));
+-		case 0:
+-			return(_Err(StErr_Timeout,"_Read","timeout"));
+-		}
+-
+-StdOutput<<"Sending "<<size<<" bytes to "<<TransmitAddress<<"\n";
+-		StSize put=sendto(_socket_handle,(char*)data,size,0,(const struct sockaddr*)&(TransmitAddress._sockaddr),sizeof(_PacketAddress._sockaddr));
+-
+-		if (put==SOCKET_ERROR)
+-			return(_SockError("send"));
+-
+-		return(put);
+-	}
+-
+-	StSize _Read(StByte *data,StSize size)
+-	{
+-		fd_set fd;
+-		FD_ZERO(&fd);
+-		FD_SET(_socket_handle,&fd);
+-
+-		switch (select(_socket_handle+1,&fd,0,0,_socket_timeout))
+-		{
+-		case SOCKET_ERROR:
+-			return(_SockError("Read-select"));
+-		case 0:
+-			return(_Err(StErr_Timeout,"_Read","timeout"));
+-		}
+-
+-		int fromlen=sizeof(_PacketAddress._sockaddr);
+-		StSize got=recvfrom(_socket_handle,(char*)data,size,0,(struct sockaddr*)&(_PacketAddress._sockaddr),&fromlen);
+-		if (got==SOCKET_ERROR)
+-			return(_SockError("recv"));
+-
+-		return(got);
+-	}
+ };
+ 
+ #endif
+Index: stbuffer.h
+===================================================================
+--- stbuffer.h	(revision 5)
++++ stbuffer.h	(working copy)
+@@ -6,15 +6,12 @@
+ // NOTE: This class *DOES NOT* implement zero termination
+ //       although otherwise is similar to StString
+ 
++#include "/src/stglib/stglib.h"
++#include "/src/stglib/starray.h"
+ 
+ #ifndef STGLIB_STBUFFER
+ #define STGLIB_STBUFFER
+ 
+-#pragma message("using stbuffer.h")
+-
+-#include "/src/stglib/stglib.h"
+-#include "/src/stglib/starray.h"
+-
+ class StBuffer:public StBase
+ {
+ protected:
+@@ -32,7 +29,7 @@
+ 	}
+ 
+ 	// allow array to duplicate storage to prevent pointer/alloc corruption!
+-	StBuffer& operator= (const StBuffer& copyfrom)
++	StBuffer& operator= (StBuffer& copyfrom)
+ 	{
+ 		_Storage=copyfrom._Storage;
+ //		StArray<StByte>::operator=(copyfrom);
+@@ -54,13 +51,12 @@
+ 		return(_Storage._ArrayPtr);
+ 	}
+ 
+-	// this is _absolutely required_ for StringFunctions<> to work
+-	inline virtual StByte *_GetPointer(void)
++/*	inline virtual StByte *_GetPointer(void)
+ 	{
+ 		return(_Storage._ArrayPtr);
+ 	}
+-
+-	/*	inline StByte* operator&(void)
++*/
++/*	inline StByte* operator&(void)
+ 	{
+ 		return(_Storage._ArrayPtr);
+ 	}
+@@ -196,7 +192,6 @@
+ 		STBASE_DEBUG_OP("StBuffer","WRITE",_Storage._ArrayPtr,Available);
+ 		StSize Wrote=Destination._Write(_Storage._ArrayPtr,Available);
+ 		if (Destination._Error) return(_Err(Destination));
+-		// %%% this should check what was wrote and write more if not all was taken
+ 		return(Wrote);
+ 	}
+ 
+@@ -233,7 +228,7 @@
+ 	}
+ 	bool operator==(const char *s)
+ 	{
+-		StSize size=s?(StSize)strlen(s):0;
++		StSize size=strlen(s);
+ 		if (size!=_Storage._ArrayUsed)
+ 			return(false);
+ 		if (memcmp(_Storage._ArrayPtr,s,size))
+Index: stbitmap.h
+===================================================================
+--- stbitmap.h	(revision 5)
++++ stbitmap.h	(working copy)
+@@ -3,8 +3,6 @@
+ #ifndef STGLIB_STBITMAP
+ #define STGLIB_STBITMAP
+ 
+-#pragma message("using stbitmap.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/ststruct.h"
+ #include "/src/stglib/stbuffer.h"
+@@ -125,7 +123,7 @@
+ //////////////////////////////////////////////////////////////////////
+ //  StBitmapBlit - copy another bitmap into this rectangle
+ //////////////////////////////////////////////////////////////////////
+-/*
++
+ class StBitmapBlit
+ {
+ public:
+@@ -150,8 +148,8 @@
+ 
+ 	operator<<(StBitmap &Source);
+ };
+-*/
+ 
++
+ //////////////////////////////////////////////////////////////////////
+ //  StBitmapInfo - handler for BITMAPINFOHEADER structure
+ //////////////////////////////////////////////////////////////////////
+@@ -547,7 +545,7 @@
+ 		_pixel->y=_pixel->height-y-1;
+ 		return((*_pixel));
+ 	}
+-/*
++
+ 	StBitmapBlit operator()(StSize x,StSize y,StSize w,StSize h)
+ 	{
+ 		StBitmapBlit blit(x,y,w,h);
+@@ -555,8 +553,8 @@
+ 
+ 		return(blit);
+ 	}
+-*/	
+ 	
++	
+ /*	StBitmap& operator+=(StBitmap &copyfrom)
+ 	{
+ 		long Xfrom=0;
+@@ -738,7 +736,7 @@
+ };
+ 
+ 
+-/*
++
+ StBitmapBlit::operator <<(StBitmap &Source)
+ {
+ 	long yt=Y;
+@@ -807,8 +805,8 @@
+ 	}
+ 
+ }
+-*/
+ 
++
+ //#include "/src/stglib/stpostfx.h"
+ 
+ #endif
+Index: stglib.h
+===================================================================
+--- stglib.h	(revision 5)
++++ stglib.h	(working copy)
+@@ -2,14 +2,54 @@
+ // Copyright 1996 by StG Net
+ #ifndef STGLIB_STGLIB
+ #define STGLIB_STGLIB
+-#pragma message("using stglib.h")
+ 
+-// load platform-specific definitions
+-#include "/src/stglib/stplatform.h"
++// Turbo C doesn't have bool/true/false
++#ifdef __TURBOC__
++typedef int bool;
++const int true=1;
++const int false=0;
+ 
++
++#include <stdio.h>
++#include <memory.h>
++#include <utime.h>
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++
++//#define _sys_nerr sys_nerr
++#define _sys_errlist sys_errlist
++
++#define _isatty isatty
++#define _fileno fileno
++
++#else
++
++// include certain "c standard" headers
++// that are needed - done here to prevent
++// multiple includes
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <memory.h>
++#include <time.h>
++#include <errno.h>
++#ifdef linux
++#include <unistd.h>
++#include <sched.h>
++#endif
++
++#include <stdarg.h>
++#include <signal.h>
++
++#endif
++
++
+ // common types (st_*)
+ 
+-typedef size_t StSize;
++// size of all buffers and indexes
++typedef unsigned long StSize;
+ 
+ // return 'size' value for failed io calls
+ #define StErr_RETURN ((StSize)(-1))
+@@ -59,8 +99,26 @@
+ #include "/src/stglib/stbase.h"
+ 
+ 
++// emulate WIN32 sleep call for linux
++#ifdef bogus
+ 
++#define stricmp strcasecmp
+ 
++void Sleep(unsigned long ms)
++{
++	if (ms>=1000)
++	{
++		sleep(ms/1000);
++		ms%=1000;
++	}
++	if (ms)
++	{
++		usleep(ms*1000);
++	}
++}
++#endif
+ 
++
++
+ #endif
+ 
+Index: starray.h
+===================================================================
+--- starray.h	(revision 5)
++++ starray.h	(working copy)
+@@ -5,13 +5,11 @@
+ 
+ // Does not include any MT features - derived or utilizing class must handle that
+ 
++#include "/src/stglib/stglib.h"
++
+ #ifndef STGLIB_STARRAY
+ #define STGLIB_STARRAY
+ 
+-#pragma message("using starray.h")
+-
+-#include "/src/stglib/stglib.h"
+-
+ //#define DEBUG
+ //#define DEBUG_TRACE
+ 
+@@ -155,7 +153,7 @@
+ 	}
+ 
+ 	// don't allow direct copy of class!!!
+-	StArray<T>& operator=(const StArray<T>& copyfrom)
++	StArray<T>& operator=(StArray<T>& copyfrom)
+ 	{
+ 		if (this==&copyfrom)
+ 			return(*this);
+Index: stsockif.h
+===================================================================
+--- stsockif.h	(revision 5)
++++ stsockif.h	(working copy)
+@@ -6,42 +6,14 @@
+ // On instantiation, StSockIfs becomes a box containing a list of StSockIf
+ // instances, each describing an available interface
+ 
+-/*	EXAMPLE CODE:
+-	StSockIfs nics;
+-	if (nics._Error)
+-	{
+-		StdOutput<<"Error obtaining interface list: "<<nics._GetErrorString()<<"\n";
+-		exit(1);
+-	}
+-
+-	StBoxRef<StSockIf> nic(nics);
+-	while (++nic)
+-	{
+-		StdOutput<<nic->Name<<"\n";
+-	}
+-*/
+-
+-
+-// original implementation based on winsock
+-// new implementation using extra capabilities from iphlpapi.lib
+-
+ #ifndef STGLIB_STSOCKIF
+ #define STGLIB_STSOCKIF
+ 
+-#pragma message("using stsockif.h")
+-
+-
+-#ifndef WIN32
+-#error NOT PORTED FROM WIN32 WINSOCK YET!
+-#endif
+-
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stsock.h"
+ #include "/src/stglib/stsockudp.h"
+ #include "/src/stglib/stbox.h"
+ 
+-#ifdef WINSOCK_ONLY_IMPLEMENTATION
+ 
+ #ifdef WIN32
+ 
+@@ -126,204 +98,4 @@
+ 	}
+ };
+ 
+-#else
+-
+-
+-#ifdef WIN32
+-
+-//#include <iphlpapi.h>
+-// MSVC6 doesn't have IPTYPES.H (used by IPHLPAPI.H) so yank FIXED_INFO struct manually 
+-
+-// Definitions and structures used by getnetworkparams and getadaptersinfo apis
+-
+-#define MAX_ADAPTER_DESCRIPTION_LENGTH  128 // arb.
+-#define MAX_ADAPTER_NAME_LENGTH         256 // arb.
+-#define MAX_ADAPTER_ADDRESS_LENGTH      8   // arb.
+-#define DEFAULT_MINIMUM_ENTITIES        32  // arb.
+-#define MAX_HOSTNAME_LEN                128 // arb.
+-#define MAX_DOMAIN_NAME_LEN             128 // arb.
+-#define MAX_SCOPE_ID_LEN                256 // arb.
+-
+-//
+-// IP_ADDRESS_STRING - store an IP address as a dotted decimal string
+-//
+-
+-typedef struct {
+-    char String[4 * 4];
+-} IP_ADDRESS_STRING, *PIP_ADDRESS_STRING, IP_MASK_STRING, *PIP_MASK_STRING;
+-
+-//
+-// IP_ADDR_STRING - store an IP address with its corresponding subnet mask,
+-// both as dotted decimal strings
+-//
+-
+-typedef struct _IP_ADDR_STRING {
+-    struct _IP_ADDR_STRING* Next;
+-    IP_ADDRESS_STRING IpAddress;
+-    IP_MASK_STRING IpMask;
+-    DWORD Context;
+-} IP_ADDR_STRING, *PIP_ADDR_STRING;
+-
+-//
+-// FIXED_INFO - the set of IP-related information which does not depend on DHCP
+-//
+-
+-typedef struct {
+-    char HostName[MAX_HOSTNAME_LEN + 4] ;
+-    char DomainName[MAX_DOMAIN_NAME_LEN + 4];
+-    PIP_ADDR_STRING CurrentDnsServer;
+-    IP_ADDR_STRING DnsServerList;
+-    UINT NodeType;
+-    char ScopeId[MAX_SCOPE_ID_LEN + 4];
+-    UINT EnableRouting;
+-    UINT EnableProxy;
+-    UINT EnableDns;
+-} FIXED_INFO, *PFIXED_INFO;
+-
+-DWORD
+-WINAPI
+-GetNetworkParams(
+-    PFIXED_INFO pFixedInfo, PULONG pOutBufLen
+-    );
+-
+-
+-//
+-// ADAPTER_INFO - per-adapter information. All IP addresses are stored as
+-// strings
+-//
+-
+-typedef struct _IP_ADAPTER_INFO {
+-    struct _IP_ADAPTER_INFO* Next;
+-    DWORD ComboIndex;
+-    char AdapterName[MAX_ADAPTER_NAME_LENGTH + 4];
+-    char Description[MAX_ADAPTER_DESCRIPTION_LENGTH + 4];
+-    UINT AddressLength;
+-    BYTE Address[MAX_ADAPTER_ADDRESS_LENGTH];
+-    DWORD Index;
+-    UINT Type;
+-    UINT DhcpEnabled;
+-    PIP_ADDR_STRING CurrentIpAddress;
+-    IP_ADDR_STRING IpAddressList;
+-    IP_ADDR_STRING GatewayList;
+-    IP_ADDR_STRING DhcpServer;
+-    BOOL HaveWins;
+-    IP_ADDR_STRING PrimaryWinsServer;
+-    IP_ADDR_STRING SecondaryWinsServer;
+-    time_t LeaseObtained;
+-    time_t LeaseExpires;
+-} IP_ADAPTER_INFO, *PIP_ADAPTER_INFO;
+-
+-DWORD
+-WINAPI
+-GetAdaptersInfo(
+-    PIP_ADAPTER_INFO pAdapterInfo, PULONG pOutBufLen
+-    );
+-
+-typedef ULONG IPAddr;       // An IP address.
+-
+-DWORD
+-WINAPI
+-SendARP(
+-    IPAddr DestIP,
+-    IPAddr SrcIP,
+-    PULONG pMacAddr,
+-    PULONG  PhyAddrLen
+-    );
+-
+-
+-#pragma comment(linker, "/defaultlib:iphlpapi.lib")
+ #endif
+-
+-// new implementation gives more data on if
+-class StSockIf
+-{
+-public:
+-	StString Name;
+-	StIpAddr IpAddress;
+-	StIpAddr Netmask;
+-	StIpAddr Broadcast;
+-	StIpAddr Gateway;
+-	StIpAddr DHCP_Server;
+-	StIpAddr DNS_Primary;
+-	StIpAddr DNS_Secondary;
+-	StByt4 Flags;
+-
+-};
+-
+-
+-class StSockIfs:public StBox<StSockIf>
+-{
+-public:
+-	StSockIfs()
+-	{
+-		// instantiating this class causes it to obtain the list of adapters
+-		StIpAddr DNS1;
+-		StIpAddr DNS2;
+-
+-		// first get "fixed info" to get DNS servers
+-		ULONG filen=sizeof(FIXED_INFO);
+-		FIXED_INFO *fi=(FIXED_INFO*)malloc(filen);
+-		DWORD result=GetNetworkParams(fi,&filen);
+-		if (result==ERROR_BUFFER_OVERFLOW)
+-		{
+-			// resize and re-get
+-			free(fi);
+-			fi=(FIXED_INFO*)malloc(filen);
+-			result=GetNetworkParams(fi,&filen);
+-		}
+-		if (result==NO_ERROR)
+-		{
+-			// store the DNS entries for later use
+-			DNS1(fi->DnsServerList.IpAddress.String);
+-			if (fi->DnsServerList.Next)
+-				DNS2(fi->DnsServerList.Next->IpAddress.String);
+-		}
+-
+-		ULONG ailen=3*sizeof(IP_ADAPTER_INFO);
+-		IP_ADAPTER_INFO *ai=(IP_ADAPTER_INFO*)malloc(ailen);
+-
+-		result=GetAdaptersInfo(ai,&ailen);
+-		if (result==ERROR_BUFFER_OVERFLOW)
+-		{
+-			// resize and re-get
+-			free(ai);
+-			ai=(IP_ADAPTER_INFO*)malloc(ailen);
+-			result=GetAdaptersInfo(ai,&ailen);
+-		}
+-		if (result!=NO_ERROR)
+-		{
+-			// bail
+-			return;
+-		}
+-
+-		IP_ADAPTER_INFO *scan=ai;
+-
+-		while (scan)
+-		{
+-			StSockIf *sif=+(*this);
+-			sif->Name<<scan->Description;
+-
+-
+-
+-			sif->IpAddress(scan->IpAddressList.IpAddress.String);
+-			sif->Netmask(scan->IpAddressList.IpMask.String);
+-			sif->IpAddress._SetNetmask(sif->Netmask);
+-
+-			sif->Gateway(scan->GatewayList.IpAddress.String);
+-
+-			if (scan->DhcpEnabled)
+-				sif->DHCP_Server(scan->DhcpServer.IpAddress.String);
+-
+-			// and copy in the DNS servers previously found
+-			sif->DNS_Primary=DNS1;
+-			sif->DNS_Secondary=DNS2;
+-
+-			scan = scan->Next;
+-		}
+-	}
+-};
+-
+-#endif
+-
+-
+-#endif
+Index: stfile.h
+===================================================================
+--- stfile.h	(revision 5)
++++ stfile.h	(working copy)
+@@ -30,15 +30,15 @@
+ #ifndef STGLIB_STFILE
+ #define STGLIB_STFILE
+ 
+-#pragma message("using stfile.h")
+-
+ #include "/src/stglib/stglib.h"
+ #include "/src/stglib/stbase.h"
+ #include "/src/stglib/ststring.h"
+ 
++#define StFileDelete unlink
++#define StFileRename rename
+ 
++#include <io.h>
+ 
+-
+ //////////////////////////////////////////////////////////////////////
+ // StFile - access disk files
+ //////////////////////////////////////////////////////////////////////
+@@ -52,7 +52,6 @@
+ 	FILE *_FileHandle;
+ 	char _HandleSupplied;
+ 	char _EndOfFile;
+-	char _Ascii;
+ 
+ public:
+ 	StString _FilePath;
+@@ -63,7 +62,6 @@
+ 		_FileHandle=NULL;
+ 		_HandleSupplied=0;
+ 		_EndOfFile=0;
+-		_Ascii=0;
+ 	}
+ 	StFile(unsigned index)
+ 	{
+@@ -71,7 +69,6 @@
+ 		_FileHandle=NULL;
+ 		_HandleSupplied=0;
+ 		_EndOfFile=0;
+-		_Ascii=0;
+ 	}
+ 	StFile(const char *path)
+ 	{
+@@ -80,7 +77,6 @@
+ 		_FileHandle=NULL;
+ 		_HandleSupplied=0;
+ 		_EndOfFile=0;
+-		_Ascii=0;
+ 		!_FilePath<<path;
+ 	}
+ 	StFile(StString &path)
+@@ -90,7 +86,6 @@
+ 		_FileHandle=NULL;
+ 		_HandleSupplied=0;
+ 		_EndOfFile=0;
+-		_Ascii=0;
+ 		!_FilePath<<path;
+ 	}
+ 	StFile(FILE *fp)
+@@ -109,7 +104,6 @@
+ 		_HandleSupplied=1;
+ 		_FileHandle=fp;
+ 		_EndOfFile=0;
+-		_Ascii=0;
+ 		!_FilePath<<"<handle>";
+ 	}
+ 
+@@ -127,10 +121,6 @@
+ 	}
+ 
+ 
+-	void _SetAscii(void)
+-	{
+-		_Ascii=1;
+-	}
+ 
+ //	StSize _FileOpen(char *path=0,char *mode=0)
+ //  *** this call has been split to better identify open/fail or create/fail method
+@@ -149,7 +139,7 @@
+ 		if (path)
+ 			!_FilePath<<path;
+ 
+-		_FileHandle=fopen(_FilePath,_Ascii?"r":"rb");
++		_FileHandle=fopen(_FilePath,"rb");
+ 		if (!_FileHandle)
+ 			return(_Errno("StFile","fopen"));
+ 
+@@ -162,7 +152,7 @@
+ 		if (path)
+ 			!_FilePath<<path;
+ 
+-		_FileHandle=fopen(_FilePath,_Ascii?"r":"rb");
++		_FileHandle=fopen(_FilePath,"rb");
+ 		if (_FileHandle)
+ 		{
+ 			// file exists! fail!
+@@ -170,7 +160,7 @@
+ 			return(_Err(StErr_FileExists,"StFile","_FileOpenNew"));
+ 		}
+ 
+-		_FileHandle=fopen(_FilePath,_Ascii?"w+":"w+b");
++		_FileHandle=fopen(_FilePath,"w+b");
+ 		if (!_FileHandle)
+ 			return(_Errno("StFile","fopen"));
+ 
+@@ -182,8 +172,8 @@
+ 		if (path)
+ 			!_FilePath<<path;
+ 
+-		StFileDelete(path);
+-		_FileHandle=fopen(_FilePath,_Ascii?"r":"rb");
++		unlink(path);
++		_FileHandle=fopen(_FilePath,"rb");
+ 		if (_FileHandle)
+ 		{
+ 			// file exists! fail!
+@@ -191,7 +181,7 @@
+ 			return(_Err(StErr_FileExists,"StFile","_FileOpenNew"));
+ 		}
+ 
+-		_FileHandle=fopen(_FilePath,_Ascii?"w+":"w+b");
++		_FileHandle=fopen(_FilePath,"w+b");
+ 		if (!_FileHandle)
+ 			return(_Errno("StFile","fopen"));
+ 
+@@ -208,7 +198,7 @@
+ 			return(0);
+ 		fseek(_FileHandle,0L,2);
+ 		StSize end=ftell(_FileHandle);
+-		fseek(_FileHandle,(long)current,0);
++		fseek(_FileHandle,current,0);
+ 		return(end-current);
+ 	}
+ 
+@@ -221,7 +211,7 @@
+ 		StSize current=ftell(_FileHandle);
+ 		fseek(_FileHandle,0L,2);
+ 		StSize end=ftell(_FileHandle);
+-		fseek(_FileHandle,(long)current,0);
++		fseek(_FileHandle,current,0);
+ 		return(end);
+ 	}
+ 
+@@ -232,7 +222,7 @@
+ 			if (_FileCreateNew())
+ 				return(0);
+ 
+-		StSize put=(StSize)fwrite(data,1,size,_FileHandle);
++		StSize put=fwrite(data,1,size,_FileHandle);
+ 
+ 		if (put!=size)
+ 		{
+@@ -254,11 +244,11 @@
+ 			return(0);
+ 		}
+ 
+-		if (StFileIsTerm(_FileHandle))
++		if (_isatty(_fileno(_FileHandle)))
+ 			if (size>1)
+ 				size=1;
+ 
+-		StSize got=(StSize)fread(data,1,size,_FileHandle);
++		StSize got=fread(data,1,size,_FileHandle);
+ 
+ 		STBASE_DEBUG_OP("StFile","READ",data,got);
+ 
+@@ -322,7 +312,7 @@
+ 		if (_FileHandle)
+ 			_FileClose();
+ 
+-		if (StFileDelete(_FilePath))
++		if (unlink(_FilePath))
+ 			return(_Errno("StFile","unlink"));
+ 
+ 		return(StErr_NONE);

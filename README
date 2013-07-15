@@ -1,13 +1,13 @@
-stglib
-======
 
-StG C++ Template Library
+StG Template Library
 
 Scott Griepentrog
 scott@stg.net
 317-644-2228
 
-PURPOSE:
+
+------------
+#### PURPOSE:
 ------------
 
 1) Rapid C++ Coding using a _single_ cpp file for entire application
@@ -57,7 +57,8 @@ PURPOSE:
 
 
 
-INSTALLATION:
+-----------------
+#### INSTALLATION:
 -----------------
 
 1) svn co http://stglib.googlecode.com/svn/stglib
@@ -70,7 +71,8 @@ INSTALLATION:
 4) compile and run, that's it.
 
 
-INCLUDES:
+------------
+#### INCLUDES:
 ------------
 
 1) All stglib based cpp must include "/src/stglib/stglib.h" first
@@ -85,7 +87,8 @@ INCLUDES:
 	c stdlib includes and only one includes the stglib instead
 	(of course only that one can use stglib classes!)
 
-COMPONENTS:
+---------------
+#### COMPONENTS:
 ---------------
 
 stagi.h		Asterisk Gateway Interface library calls (unfinished)
@@ -140,7 +143,7 @@ stwave.h	Read/write of audio .WAV files
 stwindow.h	Disused windows gui interface
 stxml.h		XML generation/parsing (unfinished)
 
-The following compnents are included automatically by others,
+--- The following compnents are included automatically by others,
 	and do not need (and should not) be included manually.
 
 stglibpt.h	Definitions of stglib types prior to platform

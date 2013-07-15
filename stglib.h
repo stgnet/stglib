@@ -1,0 +1,13 @@
+// include all the good stuff for convenience
+#include "/src/stglib/stdio.h"
+#include "/src/stglib/stcore.h"
+#include "/src/stglib/stfile.h"
+#include "/src/stglib/stdirectory.h"
+#include "/src/stglib/sttime.h"
+#include "/src/stglib/stmath.h"
+#include "/src/stglib/stsock.h"
+#include "/src/stglib/stsockudp.h"
+#include "/src/stglib/stsocktcp.h"
+#include "/src/stglib/stparse.h"
+#include "/src/stglib/stfilter.h"
+#include "/src/stglib/stcoop.h"

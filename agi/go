@@ -1,0 +1,4 @@
+g++ -D_REENTRANT dbm.cpp -o dbm || exit 0
+cp dbm /var/lib/asterisk/agi-bin
+chown asterisk.asterisk /var/lib/asterisk/agi-bin/dbm
+chmod +x /var/lib/asterisk/agi-bin/dbm

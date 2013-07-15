@@ -1,0 +1,2 @@
+g++ -g sipfud.cpp -o sipfud || exit 1
+./sipfud

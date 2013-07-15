@@ -1,0 +1,14 @@
+#!/bin/sh
+
+echo "Content-type: text/html"
+echo ""
+echo "<HTML><HEAD><TITLE>IP Addresses in use</TITLE>"
+echo "<meta http-equiv=\"refresh\" content=15>"
+echo "</HEAD>"
+echo "<BODY>"
+echo "<H4>One Test</H4>"
+echo "<pre>"
+asterisk -rx "sip show peers"
+echo "</pre>"
+echo "</body></html>"
+
