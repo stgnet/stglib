@@ -1,0 +1,4 @@
+stglib
+======
+
+C++ Template Library
